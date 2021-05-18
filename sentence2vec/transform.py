@@ -72,8 +72,8 @@ class SIF(Base):
     def build(self, tokens_list, vector_list, component=None, **kwargs):
         """词向量数据构建
 
-        :param tokens_list: 原句子的token列表，shape=[counts,seq_len]
-        :param vector_list: 句子的token向量化列表，shape=[counts,seq_len,feature]
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
         :param component: 计算主成分实现类
         :return:
         """
@@ -153,8 +153,8 @@ class uSIF(Base):
     def build(self, tokens_list, vector_list, component=None, **kwargs):
         """词向量数据构建
 
-        :param tokens_list: 原句子的token列表，shape=[counts,seq_len]
-        :param vector_list: 句子的token向量化列表，shape=[counts,seq_len,feature]
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
         :param component: 计算主成分实现类
         :return:
         """
