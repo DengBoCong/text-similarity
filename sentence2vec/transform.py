@@ -205,3 +205,15 @@ class uSIF(Base):
             sentence_list = [vs - lambda_i * proj(vs, pc) for vs in sentence_list]
 
         return np.array(sentence_list)
+
+
+class TFIdf(Base):
+    pass
+
+
+class BM25(Base):
+    pass
+
+
+class WMD(Base):
+    pass
