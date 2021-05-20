@@ -207,8 +207,20 @@ class uSIF(Base):
         return np.array(sentence_list)
 
 
-class TFIdf(Base):
-    pass
+class TFIdf:
+    def __init__(self):
+        pass
+
+    def build(self, tokens_list, vector_list, **kwargs):
+        """词向量数据构建
+
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
+        :return:
+        """
+        tf_idf = {}
+        # flod_list =
+        pass
 
 
 class BM25(Base):
