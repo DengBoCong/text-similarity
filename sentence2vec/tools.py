@@ -2,14 +2,19 @@
 """ Coding Tools
 """
 
-
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
 # License: MIT License
 
+import math
 
-# 进行词频统计
-def counter(sentences):
+
+def _counter(sentences):
+    """ 计算分词句子列表的词频次
+
+    :param sentences: 分词句子列表
+    :return 词频次列表
+    """
     word_counts = []
     for sentence in sentences:
         count = {}
@@ -22,21 +27,58 @@ def counter(sentences):
     return word_counts
 
 
-# 计算TF(word代表被计算的单词，word_list是被计算单词所在文档分词后的字典)
-def tf(word, word_list):
-    return word_list.get(word) / sum(word_list.values())
+def tf(sentences, counts=None):
+    """ 计算分词句子列表每个词的tf
+
+    :param sentences: 分词句子列表
+    :param counts: 词频次列表
+    :return: tf列表
+    """
+    if counts is None:
+        counts = _counter(sentences)
+    tfs = list()
+    for count in counts:
+        tf_dict, total = dict(), sum(count.values())
+        for key in count.keys():
+            if not tf_dict.get(key):
+                tf_dict[key] = count[key] / total
+        tfs.append(tf_dict)
+
+    return tfs
 
 
-# 统计含有该单词的句子数
-def count_sentence(word, wordcount):
-    return sum(1 for i in wordcount if i.get(word))
+def idf(sentences, counts=None):
+    """ 计算分词句子列表每个词的idf
+
+    :param sentences: 分词句子列表
+    :param counts: 词频次列表
+    :return: tf列表
+    """
+    if counts is None:
+        counts = _counter(sentences)
+    idf_dict = dict()
+    sentence_total = len(sentences)
+    for sentence in sentences:
+        for word in sentence:
+            if not idf_dict.get(word):
+                total = sum(1 for count in counts if count.get(word))
+                idf_dict[word] = math.log(sentence_total / (total + 1))
+
+    return idf_dict
 
 
-# 计算IDF
-def idf(word, wordcount):
-    return math.log(len(wordcount) / (count_sentence(word, wordcount) + 1))
+def tf_idf(sentences, counts=None):
+    """ 计算分词句子列表每个词的TF-IDF
 
-
-# 计算TF-IDF
-def tfidf(word, word_list, wordcount):
-    return tf(word, word_list) * idf(word, wordcount)
+    :param sentences: 分词句子列表
+    :param counts: 词频次列表
+    :return: TF-IDF列表
+    """
+    if counts is None:
+        counts = _counter(sentences)
+    idf_dict = idf(sentences, counts)
+    tfs = tf(sentences, counts)
+    for tf_dict in tfs:
+        for key in tf_dict.keys():
+            tf_dict[key] *= idf_dict[key]
+    return tfs

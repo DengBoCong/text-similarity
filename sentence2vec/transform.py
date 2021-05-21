@@ -12,6 +12,7 @@ from __future__ import print_function
 import abc
 import collections
 import numpy as np
+from sentence2vec.tools import tf_idf
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
 
@@ -211,14 +212,16 @@ class TFIdf:
     def __init__(self):
         pass
 
-    def build(self, tokens_list, vector_list, **kwargs):
+    def transform(self, tokens_list, vector_list, tf_idf_dict=None, **kwargs):
         """词向量数据构建
 
         :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
         :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
+        :param tf_idf_dict: 句子tf-idf字典列表
         :return:
         """
-        tf_idf = {}
+        if tf_idf_dict is None:
+            tf_idf_dict = tf_idf(tokens_list)
         # flod_list =
         pass
 
