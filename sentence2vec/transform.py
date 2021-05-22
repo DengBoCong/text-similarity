@@ -10,9 +10,10 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import math
 import collections
 import numpy as np
-from sentence2vec.tools import tf_idf
+from sentence2vec.tools import counter
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
 
@@ -208,22 +209,114 @@ class uSIF(Base):
         return np.array(sentence_list)
 
 
-class TFIdf:
-    def __init__(self):
+class TFIdf(object):
+    def __init__(self, *iterables):
         pass
 
-    def transform(self, tokens_list, vector_list, tf_idf_dict=None, **kwargs):
+    @classmethod
+    def transform(cls, tokens_list, vector_list, mask, tokens_tf_idf=None, d_type=np.float):
         """词向量数据构建
 
         :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
-        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
-        :param tf_idf_dict: 句子tf-idf字典列表
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]，seq_len严格等长
+        :param mask: tokens填充mask，非填充为1，填充为0
+        :param tokens_tf_idf: 句子tf-idf列表
+        :param d_type: 数据类型
         :return:
         """
-        if tf_idf_dict is None:
-            tf_idf_dict = tf_idf(tokens_list)
-        # flod_list =
-        pass
+        vector_list = np.array(vector_list, dtype=d_type)
+        if tokens_tf_idf is None:
+            tokens_tf_idf = cls.tf_idf(tokens_list=tokens_list, pad_size=vector_list.shape[1], d_type=d_type)
+        result = vector_list * tokens_tf_idf[:, :, np.newaxis] * mask[:, :, np.newaxis]
+        return np.mean(result, axis=1)
+
+    @staticmethod
+    def tf(tokens_list, pad_size=None, counts=None, d_type=np.float):
+        """ 计算分词句子列表每个词的tf
+
+        :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
+        :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
+        :param counts: 词频次列表
+        :param d_type: 数据类型
+        :return: tf列表，pad_size为空则为list，不为空则为np.array
+        """
+        if counts is None:
+            counts = counter(tokens_list)
+
+        if not pad_size:
+            tfs = list()
+            for tokens, count in zip(tokens_list, counts):
+                total = sum(count.values())
+                tf_list = [count[token] / total for token in tokens]
+                tfs.append(tf_list)
+        else:
+            tfs = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
+            for row, (tokens, count) in enumerate(zip(tokens_list, counts)):
+                total = sum(count.values())
+                for col, token in enumerate(tokens):
+                    tfs[row, col] = count[token] / total
+
+        return tfs
+
+    @staticmethod
+    def idf(tokens_list, pad_size=None, counts=None, d_type=np.float):
+        """ 计算分词句子列表每个词的idf
+
+        :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
+        :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
+        :param counts: 词频次列表
+        :param d_type: 数据类型
+        :return: idf列表，pad_size为空则为list，不为空则为np.array
+        """
+        if counts is None:
+            counts = counter(tokens_list)
+
+        idf_dict = dict()
+        if not pad_size:
+            tokens_idf = list()
+            token_total = len(tokens_list)
+            for tokens in tokens_list:
+                token_idf = list()
+                for token in tokens:
+                    if not idf_dict.get(token):
+                        total = sum(1 for count in counts if count.get(token))
+                        idf_dict[token] = math.log(token_total / (total + 1))
+                    token_idf.append(idf_dict[token])
+                tokens_idf.append(token_idf)
+        else:
+            tokens_idf = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
+            token_total = len(tokens_list)
+            for row, tokens in enumerate(tokens_list):
+                for col, token in enumerate(tokens):
+                    if not idf_dict.get(token):
+                        total = sum(1 for count in counts if count.get(token))
+                        idf_dict[token] = math.log(token_total / (total + 1))
+                    tokens_idf[row, col] = idf_dict[token]
+
+        return idf_dict, tokens_idf
+
+    @classmethod
+    def tf_idf(cls, tokens_list, pad_size=None, counts=None, d_type=np.float):
+        """ 计算分词句子列表每个词的TF-IDF
+
+        :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
+        :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
+        :param counts: 词频次列表
+        :param d_type: 数据类型
+        :return: TF-IDF列表，pad_size为空则为list，不为空则为np.array
+        """
+        if counts is None:
+            counts = counter(tokens_list)
+
+        if not pad_size:
+            _, tokens_idf = cls.idf(tokens_list, pad_size, counts, d_type)
+            tokens_tf = cls.tf(tokens_list, pad_size, counts, d_type)
+            return [[word_idf * word_tf for word_idf, word_tf in zip(token_idf, token_tf)]
+                    for token_idf, token_tf in zip(tokens_idf, tokens_tf)]
+        else:
+            _, tokens_idf = cls.idf(tokens_list, pad_size, counts, d_type)
+            tokens_tf = cls.tf(tokens_list, pad_size, counts, d_type)
+            return tokens_idf * tokens_tf
 
 
 class BM25(Base):
