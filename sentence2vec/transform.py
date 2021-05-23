@@ -55,7 +55,7 @@ class SIF(Base):
     Example:
         from sentence2vec.transform import SIF
         sif = SIF(n_components=5, component_type="svd")
-        sif.build(tokens_list=sentences, vector_list=vector)
+        sif.fit(tokens_list=sentences, vector_list=vector)
 
     主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
     """
@@ -71,7 +71,7 @@ class SIF(Base):
         self.prob_weight = dict()
         self.n_samples = None
 
-    def build(self, tokens_list, vector_list, component=None, **kwargs):
+    def fit(self, tokens_list, vector_list, component=None, **kwargs):
         """词向量数据构建
 
         :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
@@ -135,7 +135,7 @@ class uSIF(Base):
     Example:
         from sentence2vec.transform import uSIF
         usif = uSIF(n_components=5, n=1, component_type="svd")
-        usif.build(tokens_list=sentences, vector_list=vector)
+        usif.fit(tokens_list=sentences, vector_list=vector)
 
     主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
     """
@@ -152,7 +152,7 @@ class uSIF(Base):
         self.prob_weight = None
         self.n_samples = None
 
-    def build(self, tokens_list, vector_list, component=None, **kwargs):
+    def fit(self, tokens_list, vector_list, component=None, **kwargs):
         """词向量数据构建
 
         :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
@@ -259,12 +259,13 @@ class TFIdf(object):
         return tfs
 
     @staticmethod
-    def idf(tokens_list, pad_size=None, counts=None, d_type=np.float):
+    def idf(tokens_list, pad_size=None, counts=None, e=0.5, d_type=np.float):
         """ 计算分词句子列表每个词的idf
 
         :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
         :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
         :param counts: 词频次列表
+        :param e: 调教系数
         :param d_type: 数据类型
         :return: idf列表，pad_size为空则为list，不为空则为np.array
         """
@@ -274,13 +275,13 @@ class TFIdf(object):
         idf_dict = dict()
         if not pad_size:
             tokens_idf = list()
-            token_total = len(tokens_list)
+            token_total = len(tokens_list) + e
             for tokens in tokens_list:
                 token_idf = list()
                 for token in tokens:
                     if not idf_dict.get(token):
-                        total = sum(1 for count in counts if count.get(token))
-                        idf_dict[token] = math.log(token_total / (total + 1))
+                        total = sum(1 for count in counts if count.get(token)) + e
+                        idf_dict[token] = math.log(token_total / total)
                     token_idf.append(idf_dict[token])
                 tokens_idf.append(token_idf)
         else:
@@ -319,8 +320,13 @@ class TFIdf(object):
             return tokens_idf * tokens_tf
 
 
-class BM25(Base):
-    pass
+class BM25(object):
+    def __init__(self, b=0.75, k1=1.6):
+        self.b = b
+        self.k1 = k1
+
+    def fit(self, tokens_list, **kwargs):
+        """ 词向量数据构建"""
 
 
 class WMD(Base):
