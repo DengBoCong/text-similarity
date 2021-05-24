@@ -286,12 +286,12 @@ class TFIdf(object):
                 tokens_idf.append(token_idf)
         else:
             tokens_idf = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
-            token_total = len(tokens_list)
+            token_total = len(tokens_list) + e
             for row, tokens in enumerate(tokens_list):
                 for col, token in enumerate(tokens):
                     if not idf_dict.get(token):
-                        total = sum(1 for count in counts if count.get(token))
-                        idf_dict[token] = math.log(token_total / (total + 1))
+                        total = sum(1 for count in counts if count.get(token)) + e
+                        idf_dict[token] = math.log(token_total / total)
                     tokens_idf[row, col] = idf_dict[token]
 
         return idf_dict, tokens_idf
@@ -321,12 +321,61 @@ class TFIdf(object):
 
 
 class BM25(object):
-    def __init__(self, b=0.75, k1=1.6):
+    def __init__(self, b=0.75, k1=1.6, e=0.5):
+        """
+        :param b:
+        :param k1: 范围[1.2, 2.0]
+        :param e: IDF计算调教系数
+        """
         self.b = b
         self.k1 = k1
 
-    def fit(self, tokens_list, **kwargs):
-        """ 词向量数据构建"""
+    def bm25_weight(self, tokens_list, pad_size=None, counts=None, d_type=np.float):
+        """ 计算token列表的BM25权重
+
+        :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
+        :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
+        :param counts: 词频次列表
+        :param d_type: 数据类型
+        :return: idf列表，pad_size为空则为list，不为空则为np.array
+        """
+        if counts is None:
+            counts = counter(tokens_list)
+
+        idf_dict = dict()
+        if not pad_size:
+            tokens_idf = list()
+            token_total = len(tokens_list) + self.e
+            for tokens in tokens_list:
+                token_idf = list()
+                for token in tokens:
+                    if not idf_dict.get(token):
+                        total = sum(1 for count in counts if count.get(token)) + self.e
+                        idf_dict[token] = math.log(token_total / total)
+                    token_idf.append(idf_dict[token])
+                tokens_idf.append(token_idf)
+        else:
+            tokens_idf = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
+            token_total = len(tokens_list) + self.e
+            for row, tokens in enumerate(tokens_list):
+                for col, token in enumerate(tokens):
+                    if not idf_dict.get(token):
+                        total = sum(1 for count in counts if count.get(token)) + self.e
+                        idf_dict[token] = math.log(token_total / total)
+                    tokens_idf[row, col] = idf_dict[token]
+
+        return idf_dict, tokens_idf
+
+
+
+    def transform(self, tokens_list, vector_list, mask, tokens_tf_idf=None, d_type=np.float):
+        """
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]，seq_len严格等长
+        :param mask: tokens填充mask，非填充为1，填充为0
+        :param tokens_tf_idf: 句子tf-idf列表
+        :param d_type: 数据类型
+        """
 
 
 class WMD(Base):
