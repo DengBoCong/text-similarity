@@ -273,9 +273,9 @@ class TFIdf(object):
             counts = counter(tokens_list)
 
         idf_dict = dict()
+        token_total = len(tokens_list) + e
         if not pad_size:
             tokens_idf = list()
-            token_total = len(tokens_list) + e
             for tokens in tokens_list:
                 token_idf = list()
                 for token in tokens:
@@ -286,7 +286,6 @@ class TFIdf(object):
                 tokens_idf.append(token_idf)
         else:
             tokens_idf = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
-            token_total = len(tokens_list) + e
             for row, tokens in enumerate(tokens_list):
                 for col, token in enumerate(tokens):
                     if not idf_dict.get(token):
@@ -297,38 +296,41 @@ class TFIdf(object):
         return idf_dict, tokens_idf
 
     @classmethod
-    def tf_idf(cls, tokens_list, pad_size=None, counts=None, d_type=np.float):
+    def tf_idf(cls, tokens_list, pad_size=None, counts=None, e=0.5, d_type=np.float):
         """ 计算分词句子列表每个词的TF-IDF
 
         :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]，seq_len可以不等长
         :param pad_size: seq_len填充大小，默认不进行填充（填充0值）
         :param counts: 词频次列表
+        :param e: 调教系数
         :param d_type: 数据类型
         :return: TF-IDF列表，pad_size为空则为list，不为空则为np.array
         """
         if counts is None:
             counts = counter(tokens_list)
 
+        _, tokens_idf = cls.idf(tokens_list, pad_size, counts, e, d_type)
+        tokens_tf = cls.tf(tokens_list, pad_size, counts, d_type)
+
         if not pad_size:
-            _, tokens_idf = cls.idf(tokens_list, pad_size, counts, d_type)
-            tokens_tf = cls.tf(tokens_list, pad_size, counts, d_type)
             return [[word_idf * word_tf for word_idf, word_tf in zip(token_idf, token_tf)]
                     for token_idf, token_tf in zip(tokens_idf, tokens_tf)]
         else:
-            _, tokens_idf = cls.idf(tokens_list, pad_size, counts, d_type)
-            tokens_tf = cls.tf(tokens_list, pad_size, counts, d_type)
             return tokens_idf * tokens_tf
 
 
 class BM25(object):
-    def __init__(self, b=0.75, k1=1.6, e=0.5):
+    def __init__(self, b=0.75, k1=2, k2=1, e=0.5):
         """
         :param b:
         :param k1: 范围[1.2, 2.0]
+        :param k2:
         :param e: IDF计算调教系数
         """
         self.b = b
         self.k1 = k1
+        self.k2 = k2
+        self.e = e
 
     def bm25_weight(self, tokens_list, pad_size=None, counts=None, d_type=np.float):
         """ 计算token列表的BM25权重
@@ -343,30 +345,36 @@ class BM25(object):
             counts = counter(tokens_list)
 
         idf_dict = dict()
+        token_total = len(tokens_list)
+        avg_doc_len = sum([len(tokens) for tokens in tokens_list]) / token_total
+
         if not pad_size:
-            tokens_idf = list()
-            token_total = len(tokens_list) + self.e
-            for tokens in tokens_list:
-                token_idf = list()
+            tokens_weight = list()
+            for index, tokens in enumerate(tokens_list):
+                token_weight = list()
+                doc_len = len(counts[index])
                 for token in tokens:
                     if not idf_dict.get(token):
-                        total = sum(1 for count in counts if count.get(token)) + self.e
-                        idf_dict[token] = math.log(token_total / total)
-                    token_idf.append(idf_dict[token])
-                tokens_idf.append(token_idf)
+                        total = sum(1 for count in counts if count.get(token))
+                        idf_dict[token] = math.log((token_total - total + self.e) / (total + self.e) + 1)
+                    freq = counts[index][token]
+                    weight = idf_dict[token] * (freq * (self.k1 + 1) / (freq + self.k1 * (
+                            1 - self.b + self.b * doc_len / avg_doc_len))) * (freq * (self.k2 + 1) / (freq + self.k2))
+                    token_weight.append(weight)
+                tokens_weight.append(token_weight)
         else:
-            tokens_idf = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
-            token_total = len(tokens_list) + self.e
+            tokens_weight = np.zeros(shape=(len(tokens_list), pad_size), dtype=d_type)
             for row, tokens in enumerate(tokens_list):
+                doc_len = len(counts[row])
                 for col, token in enumerate(tokens):
                     if not idf_dict.get(token):
-                        total = sum(1 for count in counts if count.get(token)) + self.e
-                        idf_dict[token] = math.log(token_total / total)
-                    tokens_idf[row, col] = idf_dict[token]
+                        total = sum(1 for count in counts if count.get(token))
+                        idf_dict[token] = math.log((token_total - total + self.e) / (total + self.e) + 1)
+                    freq = counts[row][token]
+                    tokens_weight[row, col] = idf_dict[token] * (freq * (self.k1 + 1) / (freq + self.k1 * (
+                            1 - self.b + self.b * doc_len / avg_doc_len))) * (freq * (self.k2 + 1) / (freq + self.k2))
 
-        return idf_dict, tokens_idf
-
-
+        return idf_dict, tokens_weight
 
     def transform(self, tokens_list, vector_list, mask, tokens_tf_idf=None, d_type=np.float):
         """
@@ -376,6 +384,7 @@ class BM25(object):
         :param tokens_tf_idf: 句子tf-idf列表
         :param d_type: 数据类型
         """
+
 
 
 class WMD(Base):
