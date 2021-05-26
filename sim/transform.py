@@ -13,7 +13,7 @@ import abc
 import math
 import collections
 import numpy as np
-from sentence2vec.tools import counter
+from sim.tools import counter
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
 

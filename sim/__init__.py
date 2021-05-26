@@ -1,4 +1,4 @@
 #! -*- coding: utf-8 -*-
 
-name = "sentence2vec"
+name = "sim"
 __version__ = "0.0.1"

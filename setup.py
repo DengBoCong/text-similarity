@@ -4,13 +4,13 @@ from setuptools import setup
 from setuptools import find_packages
 
 setup(
-    name='sentence2vec',
+    name='text-sim',
     version='0.0.1',
-    description='an elegant sentence2vec',
-    long_description='sentence2vec: https://github.com/DengBoCong/sentence2vec',
+    description='an elegant text-sim',
+    long_description='text-sim: https://github.com/DengBoCong/sim',
     long_description_content_type="text/markdown",
     license='MIT License',
-    url='https://github.com/DengBoCong/sentence2vec',
+    url='https://github.com/DengBoCong/sim',
     author='DengBoCong',
     author_email='bocongdeng@gmail.com',
     install_requires=['scikit-learn>=0.23.2', 'numpy>=1.19.2'],
