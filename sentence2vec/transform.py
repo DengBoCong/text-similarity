@@ -210,25 +210,38 @@ class uSIF(Base):
 
 
 class TFIdf(object):
-    def __init__(self, *iterables):
-        pass
-
-    @classmethod
-    def transform(cls, tokens_list, vector_list, mask, tokens_tf_idf=None, d_type=np.float):
-        """词向量数据构建
-
-        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
-        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]，seq_len严格等长
-        :param mask: tokens填充mask，非填充为1，填充为0
-        :param tokens_tf_idf: 句子tf-idf列表
-        :param d_type: 数据类型
-        :return:
+    def __init__(self, tokens_list, counts=None, e=0.5):
         """
-        vector_list = np.array(vector_list, dtype=d_type)
-        if tokens_tf_idf is None:
-            tokens_tf_idf = cls.tf_idf(tokens_list=tokens_list, pad_size=vector_list.shape[1], d_type=d_type)
-        result = vector_list * tokens_tf_idf[:, :, np.newaxis] * mask[:, :, np.newaxis]
-        return np.mean(result, axis=1)
+        :param tokens_list: 已经分词的token列表，shape = [counts, seq_len]
+        :param counts: 词频次列表
+        :param e: 调教系数
+        """
+        self.counts = counts
+        if self.counts is None:
+            self.counts = counter(tokens_list)
+
+        self.idf_dict = dict()
+        token_total = len(tokens_list) + e
+        for tokens, count in zip(tokens_list, counts):
+            for token in tokens:
+                if not self.idf_dict.get(token):
+                    total = sum(1 for count in counts if count.get(token)) + e
+                    self.idf_dict[token] = math.log(token_total / total)
+
+    def get_score(self, index, query):
+        """ 计算查询语句与语料库中指定文本的tf-idf相似分数
+
+        :param index: 语料库中文本索引
+        :param query: 查询文本
+        :return: tf-idf相似分数
+        """
+        score = 0.0
+        total = sum(self.counts[index].values())
+        for token in query:
+            if token not in self.counts[index]:
+                continue
+            score += (self.counts[index][token] / total) * self.idf_dict[token]
+        return score
 
     @staticmethod
     def tf(tokens_list, pad_size=None, counts=None, d_type=np.float):
@@ -318,6 +331,21 @@ class TFIdf(object):
         else:
             return tokens_idf * tokens_tf
 
+    @classmethod
+    def transform(cls, tokens_list, vector_list, mask, d_type=np.float):
+        """词向量数据构建
+
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]，seq_len严格等长
+        :param mask: tokens填充mask，非填充为1，填充为0
+        :param d_type: 数据类型
+        :return:
+        """
+        vector_list = np.array(vector_list, dtype=d_type)
+        tokens_tf_idf = cls.tf_idf(tokens_list=tokens_list, pad_size=vector_list.shape[1], d_type=d_type)
+        result = vector_list * tokens_tf_idf[:, :, np.newaxis] * mask[:, :, np.newaxis]
+        return np.mean(result, axis=1)
+
 
 class BM25(object):
     def __init__(self, b=0.75, k1=2, k2=1, e=0.5):
@@ -331,6 +359,15 @@ class BM25(object):
         self.k1 = k1
         self.k2 = k2
         self.e = e
+
+    def get_score(self, index, query):
+        """ 计算查询语句与语料库中指定文本的bm25相似分数
+
+        :param index: 语料库中文本索引
+        :param query: 查询文本
+        :return: bm25相似分数
+        """
+        pass
 
     def bm25_weight(self, tokens_list, pad_size=None, counts=None, d_type=np.float):
         """ 计算token列表的BM25权重
@@ -376,15 +413,17 @@ class BM25(object):
 
         return idf_dict, tokens_weight
 
-    def transform(self, tokens_list, vector_list, mask, tokens_tf_idf=None, d_type=np.float):
+    def transform(self, tokens_list, vector_list, mask, d_type=np.float):
         """
         :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
         :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]，seq_len严格等长
         :param mask: tokens填充mask，非填充为1，填充为0
-        :param tokens_tf_idf: 句子tf-idf列表
         :param d_type: 数据类型
         """
-
+        vector_list = np.array(vector_list, dtype=d_type)
+        weight = self.bm25_weight(tokens_list, vector_list.shape[1], None, d_type)
+        result = vector_list * weight[:, :, np.newaxis] * mask[:, :, np.newaxis]
+        return np.mean(result, axis=1)
 
 
 class WMD(Base):
