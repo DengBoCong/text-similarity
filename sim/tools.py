@@ -27,6 +27,7 @@ def counter(sentences):
         word_counts.append(count)
     return word_counts
 
+
 def load_log(filename=datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")):
     """ 加载项目运行日志器
 
@@ -35,4 +36,3 @@ def load_log(filename=datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")):
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
     log_file = "{}.log"
-
