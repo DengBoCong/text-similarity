@@ -9,6 +9,10 @@
 import logging
 import datetime
 
+class Feature(object):
+    """ 对语料数据进行统计"""
+    pass
+
 
 def counter(sentences):
     """ 计算分词句子列表的词频次
