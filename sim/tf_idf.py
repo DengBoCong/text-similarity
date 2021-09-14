@@ -11,8 +11,8 @@ from __future__ import print_function
 
 import math
 import numpy as np
-from typing import Any
 from sim.base import IdfBase
+from typing import Any
 
 
 class TFIdf(IdfBase):
@@ -56,8 +56,7 @@ class TFIdf(IdfBase):
         :return: tf-idf分数列表，列表中的element为(index, score)
         """
         scores = list()
-        d_length = len(self.counts)
-        for i in range(d_length):
+        for i in range(self.document_count):
             node = (i, self.get_score(query=query, index=i, e=e))
             scores.append(node)
         scores.sort(key=lambda x: x[1], reverse=True)
@@ -98,7 +97,7 @@ class TFIdf(IdfBase):
                                  "You should set `d_type=object` for variable length strings."
                                  .format(d_type, type(value)))
 
-            result = np.full(shape=(len(self.tokens_list), pad_size), fill_value=value, dtype=d_type)
+            result = np.full(shape=(self.document_count, pad_size), fill_value=value, dtype=d_type)
             for i, (tokens, count) in enumerate(zip(self.tokens_list, self.counts)):
                 total = len(tokens)
 
@@ -125,7 +124,8 @@ class TFIdf(IdfBase):
 
             return result
 
-    def extract_keywords(self):
+    def extract_keywords(self, query: list = None, query_file_path: str = None,
+                         idf_dict: dict = None, idf_file: str = None):
         """ 提取关键词
         """
         pass

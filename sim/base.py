@@ -26,6 +26,8 @@ class IdfBase(object):
         self.counts = list()
         self.document_count = 0
         self.token_docs = dict()
+        self.length_average = 0.  # 文档平均长度
+
         if tokens_list and not split:
             for tokens in tokens_list:
                 self._init_token_feature(tokens=tokens)
@@ -42,6 +44,8 @@ class IdfBase(object):
             for file in file_list:
                 self._init_file_token_feature(file_path=file, split=split)
 
+        self.length_average /= self.document_count
+
     def _init_token_feature(self, tokens: list) -> None:
         """ 配合init初始化语料文本的相关特征变量
         :param tokens: tokens列表
@@ -49,6 +53,7 @@ class IdfBase(object):
         """
         self.tokens_list.append(tokens)
         self.document_count += 1
+        self.length_average += len(tokens)
 
         td_tf_dict = dict()
         for token in tokens:
