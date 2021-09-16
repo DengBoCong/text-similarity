@@ -27,7 +27,7 @@ class BM25(IdfBase):
         :param split: 文本分隔符，list模式不传则每个element视为list，file模式必传
         :return: None
         """
-        IdfBase.__init__(self, tokens_list, file_path, file_list, split)
+        super(BM25, self).__init__(tokens_list, file_path, file_list, split)
 
     def get_score(self, query: list, index: int, q_tf_dict: dict = None, q_total: int = 0,
                   if_tq: bool = True, e: int = 0.5, b=0.75, k1=2, k2=1.2) -> float:

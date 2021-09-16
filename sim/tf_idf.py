@@ -27,7 +27,7 @@ class TFIdf(IdfBase):
         :param split: 文本分隔符，list模式不传则每个element视为list，file模式必传
         :return: None
         """
-        IdfBase.__init__(self, tokens_list, file_path, file_list, split)
+        super(TFIdf, self).__init__(tokens_list, file_path, file_list, split)
 
     def get_score(self, query: list, index: int, e: int = 0.5) -> float:
         """ 计算查询语句与语料库中指定文本的tf-idf相似分数
