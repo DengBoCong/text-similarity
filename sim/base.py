@@ -9,9 +9,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import abc
+import hashlib
+from typing import Any
+
 
 class IdfBase(object):
-    """ 实现有idf计算的基础类
+    """ 实现有idf计算的基类
     """
 
     def __init__(self, tokens_list: list = None, file_path: str = None, file_list: list = None, split: str = None):
@@ -76,3 +80,29 @@ class IdfBase(object):
                 if line == "":
                     continue
                 self._init_token_feature(tokens=line.split(split))
+
+
+class LSH(abc.ABC):
+    """ 实现LSH的基类
+    """
+
+    def __init__(self):
+        pass
+
+    @abc.abstractmethod
+    def search(self, *args, **kwargs):
+        """ 匹配搜索， 返回搜索结果
+        """
+        raise NotImplementedError("Must be implemented in subclasses.")
+
+    @staticmethod
+    def hash(key: str, hash_obj: str = "md5") -> Any:
+        """ 用于计算hash值
+        :param key: 计算hash的key
+        :param hash_obj: 用于计算hash的方法
+        :return: 返回
+        """
+        if hash_obj == "md5":
+            return hashlib.md5(key.encode("utf-8")).hexdigest()
+        elif hash_obj == "sha1":
+            return hashlib.sha1(key.encode("utf-8")).hexdigest()
