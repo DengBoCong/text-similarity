@@ -97,7 +97,7 @@ class MinHash(LSH):
         :param hash_obj: 用于计算hash的方法
         :return: 检索结果集合
         """
-        if not isinstance(candidates, list) and not isinstance(candidates, np.ndarray):
+        if not isinstance(candidates, (list, np.ndarray)):
             raise TypeError("must be list or numpy array")
 
         result = set()
@@ -127,6 +127,7 @@ class MinHash(LSH):
 class TableNode(object):
     """ Hash table的节点
     """
+
     def __init__(self, index):
         self.val = index
         self.buckets = {}
@@ -167,17 +168,17 @@ class E2LSH(LSH):
         return result
 
     @staticmethod
-    def gen_hash_values(e2lsh_family: list, v: int, r: int = 1) -> list:
+    def gen_hash_values(e2lsh_family: list, vector: int, r: int = 1) -> list:
         """ 计算hash值
         :param e2lsh_family: 分布簇
-        :param v: 向量
+        :param vector: 向量
         :param r: 可调参数
         :return: hash值列表
         """
         hash_values = list()
 
         for hab in e2lsh_family:
-            hash_value = (np.inner(hab[0], v) + hab[1]) // r
+            hash_value = (np.inner(hab[0], vector) + hab[1]) // r
             hash_values.append(hash_value)
 
         return hash_values
@@ -193,7 +194,8 @@ class E2LSH(LSH):
         """
         return int(sum([(hash_values[i] * fp_rand[i]) for i in range(k)]) % c)
 
-    def e2lsh(self, candidates: Any, c: int = pow(2, 32) - 5, k: int = 20, L: int = 5, r: int = 1, table_size: int = 20) -> tuple:
+    def e2lsh(self, candidates: Any, c: int = pow(2, 32) - 5, k: int = 20,
+              L: int = 5, r: int = 1, table_size: int = 20) -> tuple:
         """ E2LSH 的核心实现
         :param candidates: 检索候选集，必须是二维等长list
         :param c: 可调参数
@@ -216,7 +218,7 @@ class E2LSH(LSH):
 
             for data_index in range(m):
                 hash_values = self.gen_hash_values(e2lsh_family, candidates[data_index], r)
-                fp = self.h2(hash_values, fp_rand, k, c)
+                fp = self.h2(hash_values, fp_rand, c, k)
                 index = fp % table_size
                 node = hash_table[index]
 
@@ -228,7 +230,8 @@ class E2LSH(LSH):
 
         return hash_table, hash_funcs, fp_rand
 
-    def search(self, candidates: Any, query: Any, c: int = pow(2, 32) - 5, k: int = 20, L: int = 5, r: int = 1, table_size: int = 20):
+    def search(self, candidates: Any, query: Any, c: int = pow(2, 32) - 5,
+               k: int = 20, L: int = 5, r: int = 1, table_size: int = 20) -> set:
         """ min-hash 匹配搜索
         :param candidates: 检索候选集，必须是二维等长list
         :param query: 查询query，必须是一维list或者一维numpy array，长度与candidates长度一致
@@ -243,5 +246,13 @@ class E2LSH(LSH):
             raise TypeError("must be 2-d list")
 
         result = set()
-        temp = self.e2lsh(candidates, c, k, L, r, table_size)
-        
+        hash_table, hash_funcs, fp_rand = self.e2lsh(candidates, c, k, L, r, table_size)
+
+        for hash_func in hash_funcs:
+            query_fp = self.h2(self.gen_hash_values(hash_func, query, r), fp_rand, c, k)
+            query_index = query_fp % table_size
+
+            if query_fp in hash_table[query_index].buckets:
+                result.update(hash_table[query_index].buckets[query_fp])
+
+        return result

@@ -80,3 +80,6 @@ def hamming_dist(emb1, emb2):
     avg1, avg2 = np.mean(emb1, axis=-1), np.mean(emb2, axis=-1)
     binary1, binary2 = np.where(emb1 < avg1, 0, 1), np.where(emb2 < avg2, 0, 1)
     return len(np.nonzero(binary1 - binary2, )[0])
+
+
+# 编辑距离
