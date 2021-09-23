@@ -84,17 +84,35 @@ def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
     :param emb1: shape = [feature,]
     :param emb2: shape = [feature,]
     :param axis: 计算维度
-    :return: Jaccard 洗漱
+    :return: Jaccard 系数
     """
-    # print(emb1 != emb2)
-    # print(emb1 != 0)
-    # print(emb2 != 0)
-    # print(np.double(np.bitwise_and((emb1 != emb2), np.bitwise_or(emb1 != 0, emb2 != 0)).sum()))
-    # exit(0)
     up = np.double(np.bitwise_and((emb1 != emb2), np.bitwise_or(emb1 != 0, emb2 != 0)).sum())
     down = np.double(np.bitwise_or(emb1 != 0, emb2 != 0).sum())
     d1 = (up / down)
     return d1
+
+
+def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+    """ 计算特征向量的皮尔森相关系数
+
+    :param emb1: shape = [..., feature]
+    :param emb2: shape = [..., feature]
+    :param axis: 计算维度
+    :return: 皮尔森相关系数
+    """
+    diff1, diff2 = emb1 - np.mean(emb1, axis=axis)[..., np.newaxis], emb2 - np.mean(emb2, axis=axis)[..., np.newaxis]
+    up = np.sum(diff1 * diff2, axis=axis)
+    down = np.sqrt(np.sum(np.square(diff1), axis=axis)) * np.sqrt(np.sum(np.square(diff2), axis=axis))
+    return np.divide(up, down)
+
+
+def mahalanobis_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+    """ 计算特征向量间的马氏距离
+    :param emb1: shape = [..., feature]
+    :param emb2: shape = [..., feature]
+    :param axis: 计算维度
+    :return: 马氏距离
+    """
 
 
 def _weighted_average(emb1, emb2, axis=-1):
