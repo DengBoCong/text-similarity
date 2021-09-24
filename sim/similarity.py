@@ -62,7 +62,7 @@ def minkowsk_dist(emb1: np.ndarray, emb2: np.ndarray, p: int, axis: int = -1) ->
     return np.power(tmp, 1 / p)
 
 
-def hamming_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+def hamming_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
     """ 计算特征向量的汉明距离
 
     :param emb1: shape = [feature,]
@@ -78,12 +78,11 @@ def hamming_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
     return len(np.nonzero(binary1 - binary2)[0])
 
 
-def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray) -> float:
     """ 计算特征向量的Jaccard系数
 
     :param emb1: shape = [feature,]
     :param emb2: shape = [feature,]
-    :param axis: 计算维度
     :return: Jaccard 系数
     """
     up = np.double(np.bitwise_and((emb1 != emb2), np.bitwise_or(emb1 != 0, emb2 != 0)).sum())
@@ -92,7 +91,7 @@ def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
     return d1
 
 
-def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
     """ 计算特征向量的皮尔森相关系数
 
     :param emb1: shape = [..., feature]
@@ -106,32 +105,51 @@ def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
     return np.divide(up, down)
 
 
-def mahalanobis_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1):
+def mahalanobis_dist(emb1: np.ndarray, emb2: np.ndarray) -> list:
     """ 计算特征向量间的马氏距离
-    :param emb1: shape = [..., feature]
-    :param emb2: shape = [..., feature]
-    :param axis: 计算维度
+    :param emb1: shape = [feature,]
+    :param emb2: shape = [feature,]
     :return: 马氏距离
     """
+    x = np.vstack([emb1, emb2])
+    xt = x.T
+    si = np.linalg.inv(np.cov(x))
+    n = xt.shape[0]
+    d1 = []
+    for i in range(0, n):
+        for j in range(i + 1, n):
+            delta = xt[i] - xt[j]
+            d = np.sqrt(np.dot(np.dot(delta, si), delta.T))
+            d1.append(d)
+
+    return d1
 
 
-def _weighted_average(emb1, emb2, axis=-1):
-    """ 计算特征向量的权重平均分数
+def kl_divergence(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
+    """ 计算特征向量的KL散度
 
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
     :param axis: 计算维度
-    :return: 余弦相似度分数，shape = [...,]
+    :return: KL散度
     """
-    inn = (emb1 * emb2).sum(axis=axis)
-    emb1norm = np.sqrt((emb1 * emb1).sum(axis=axis))
-    emb2norm = np.sqrt((emb2 * emb2).sum(axis=axis))
+    return np.sum(emb1 * np.log(np.divide(emb1, emb2)), axis=axis)
 
-    if np.any(emb1norm == 0) or np.any(emb2norm == 0):
-        raise RuntimeWarning(" divisor is zero")
 
-    scores = inn / emb1norm / emb2norm
+def levenshtein_dist(str1: str, str2: str):
+    """ 计算两个字符串之间的编辑距离
 
-    return scores
+    :param str1: 字符串
+    :param str2: 字符串
+    :return:编辑距离
+    """
+    matrix = [[i + j for j in range(len(str2) + 1)] for i in range(len(str1) + 1)]
+    for i in range(1, len(str1) + 1):
+        for j in range(1, len(str2) + 1):
+            if str1[i - 1] == str2[j - 1]:
+                d = 0
+            else:
+                d = 1
+            matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + d)
 
-# 编辑距离
+    return matrix[len(str1)][len(str2)]
