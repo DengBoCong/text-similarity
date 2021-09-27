@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" 全局Base类
+""" Global Base Class
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
@@ -15,15 +15,15 @@ from typing import Any
 
 
 class IdfBase(object):
-    """ 实现有idf计算的基类
+    """ Implement the base class with idf cal
     """
 
     def __init__(self, tokens_list: list = None, file_path: str = None, file_list: list = None, split: str = None):
-        """ tokens_list、file_path、file_list三者传其一，tokens_list为文本列表时，split必传
-        :param tokens_list: 已经分词的文本列表或token列表
-        :param file_path: 已分词文本列表文件路径，一行一个文本
-        :param file_list: 已分词的文本列表文件路径列表，一行一个文本
-        :param split: 文本分隔符，list模式不传则每个element视为list，file模式必传
+        """ tokens_list、file_path and file_list must pass one, when tokens_list is a text list, split must pass
+        :param tokens_list: text list or token list
+        :param file_path: the path of the word segmented text file, one text per line
+        :param file_list: file list, one text per line
+        :param split: if the list mode is not passed, element is regarded as a list, and the file mode must be passed
         :return: None
         """
         self.tokens_list = list()
@@ -51,8 +51,8 @@ class IdfBase(object):
         self.length_average /= self.document_count
 
     def _init_token_feature(self, tokens: list) -> None:
-        """ 配合init初始化语料文本的相关特征变量
-        :param tokens: tokens列表
+        """ Initialize the feature variables of the corpus text
+        :param tokens: tokens list
         :return: None
         """
         self.tokens_list.append(tokens)
@@ -69,9 +69,9 @@ class IdfBase(object):
             self.token_docs[token] = self.token_docs.get(token, 0) + 1
 
     def _init_file_token_feature(self, file_path: str, split: str) -> None:
-        """ 配合init初始化语料文本的相关特征变量，file模式
-        :param file_path: 文件路径
-        :param split: 文本分隔符
+        """ Initialize the feature variables of the corpus text, file mode
+        :param file_path: file path
+        :param split:
         :return: None
         """
         with open(file_path, "r", encoding="utf-8") as file:
@@ -83,7 +83,7 @@ class IdfBase(object):
 
 
 class LSH(abc.ABC):
-    """ 实现LSH的基类
+    """ Base class that implements LSH
     """
 
     def __init__(self):
@@ -91,18 +91,46 @@ class LSH(abc.ABC):
 
     @abc.abstractmethod
     def search(self, *args, **kwargs):
-        """ 匹配搜索， 返回搜索结果
+        """ Match search, return search result
         """
         raise NotImplementedError("Must be implemented in subclasses.")
 
     @staticmethod
     def hash(key: str, hash_obj: str = "md5") -> Any:
-        """ 用于计算hash值
-        :param key: 计算hash的key
-        :param hash_obj: 用于计算hash的方法
+        """ Used to calculate the hash value
+        :param key: hash key
+        :param hash_obj: the method used to calculate the hash
         :return: 返回
         """
         if hash_obj == "md5":
             return hashlib.md5(key.encode("utf-8")).hexdigest()
         elif hash_obj == "sha1":
             return hashlib.sha1(key.encode("utf-8")).hexdigest()
+
+
+class Base(abc.ABC):
+    def __init__(self, svd_solver="auto", component_type="pca", **kwargs):
+        super().__init__()
+
+        self.component = None
+        self.svd_solver = svd_solver
+        self.component_type = component_type
+
+    def _get_component(self, n_components, component=None, **kwargs):
+        """ 获取实现类
+
+        :param component: 计算主成分实现类
+        :param kwargs:
+        :return: None
+        """
+        if component:
+            if not hasattr(component, "fit") or not hasattr(component, "components_"):
+                raise ValueError("component实现中必须实现fit()方法、components_属性")
+            else:
+                self.component = component
+        elif self.component_type == "pca":
+            self.component = PCA(n_components=n_components, svd_solver=self.svd_solver)
+        elif self.component_type == "svd":
+            self.component = TruncatedSVD(n_components=n_components, n_iter=7, random_state=0)
+        else:
+            raise ValueError("请实例化主成分实现类")

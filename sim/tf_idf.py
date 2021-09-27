@@ -20,21 +20,20 @@ class TFIdf(IdfBase):
     """
 
     def __init__(self, tokens_list: list = None, file_path: str = None, file_list: list = None, split: str = None):
-        """ tokens_list、file_path、file_list三者传其一，tokens_list为文本列表时，split必传
-        :param tokens_list: 已经分词的文本列表或token列表
-        :param file_path: 已分词文本列表文件路径，一行一个文本
-        :param file_list: 已分词的文本列表文件路径列表，一行一个文本
-        :param split: 文本分隔符，list模式不传则每个element视为list，file模式必传
-        :return: None
+        """ tokens_list、file_path and file_list must pass one, when tokens_list is a text list, split must pass
+        :param tokens_list: text list or token list
+        :param file_path: the path of the word segmented text file, one text per line
+        :param file_list: file list, one text per line
+        :param split: if the list mode is not passed, element is regarded as a list, and the file mode must be passed
         """
         super(TFIdf, self).__init__(tokens_list, file_path, file_list, split)
 
     def get_score(self, query: list, index: int, e: int = 0.5) -> float:
-        """ 计算查询语句与语料库中指定文本的tf-idf相似分数
-        :param query: 查询文本
-        :param index: 语料库中文本索引
-        :param e: 调教系数
-        :return: tf-idf相似分数
+        """ Calculate the tf-idf score between the token seq and the seq of specified index
+        :param query: token seq
+        :param index: the index of the specified seq
+        :param e: adjustable factor
+        :return: tf-idf score
         """
         score = 0.0
         total = sum(self.counts[index].values())
@@ -47,13 +46,12 @@ class TFIdf(IdfBase):
         return score
 
     def get_score_list(self, query: list, top_k: int = 0, e: int = 0.5):
-        """ 检索文本列表中tf-idf分数最高的前top-k个文本序列，当
-            top-k为0时，返回文本列表中所有文本序列与指定文本序列
-            的td-idf分数
-        :param query: 文本序列
-        :param top_k: 返回的数量
-        :param e: 调教系数
-        :return: tf-idf分数列表，列表中的element为(index, score)
+        """ Retrieve the top-k seq with the highest tf-idf score in the list. When top-k is 0,
+            return the tf-idf scores of all seq in the text list. Sort in desc.
+        :param query: token list
+        :param top_k: the num of return
+        :param e: adjustable factor
+        :return: tf-idf scores, element shape: (index, score)
         """
         scores = list()
         for i in range(self.document_count):
@@ -65,16 +63,16 @@ class TFIdf(IdfBase):
 
     def weight(self, e: int = 0.5, pad_size: int = None, padding: str = "pre",
                truncating: str = "pre", value: float = 0., d_type: str = "float32") -> Any:
-        """ 对tokens_list中的句向量进行TF-IDF加权转换，当
-            不传pad_size时，则返回对应的权重list，当传入
-            pad_size时(对其他参数生效)，则返回补齐的numpy的矩阵张量
-        :param e: 调教系数
-        :param pad_size: 填充的最大长度
-        :param padding: 填充类型，pre在前，post在后
-        :param truncating: 截断类型，pre在前，post在后
-        :param value: 填充值值
-        :param d_type: 输出类型
-        :return: tokens_list的TF-IDF权重
+        """ Perform tf-idf weighted conversion on the sentence vector in tokens_list. When pad_size is not
+            passed, the corresponding weight list is returned. When pad_size is passed in (valid for other
+            parameters), the complemented numpy tensor is returned.
+        :param e: adjustable factor
+        :param pad_size: padding size
+        :param padding: filling type, pre is in front, post is in back
+        :param truncating: truncating type, pre is in front, post is in back
+        :param value: filling value
+        :param d_type:
+        :return: TF-IDF weight
         """
         if not self.tokens_list:
             raise ValueError("tokens_list is not initialized in th init func")
@@ -126,6 +124,6 @@ class TFIdf(IdfBase):
 
     def extract_keywords(self, query: list = None, query_file_path: str = None,
                          idf_dict: dict = None, idf_file: str = None):
-        """ 提取关键词
+        """ Extract keywords
         """
         pass
