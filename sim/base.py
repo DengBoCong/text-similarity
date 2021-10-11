@@ -30,7 +30,7 @@ class IdfBase(object):
         self.counts = list()
         self.document_count = 0
         self.token_docs = dict()
-        self.length_average = 0.  # 文档平均长度
+        self.length_average = 0.  # Average doc length
 
         if tokens_list and not split:
             for tokens in tokens_list:
@@ -100,7 +100,7 @@ class LSH(abc.ABC):
         """ Used to calculate the hash value
         :param key: hash key
         :param hash_obj: the method used to calculate the hash
-        :return: 返回
+        :return:
         """
         if hash_obj == "md5":
             return hashlib.md5(key.encode("utf-8")).hexdigest()

@@ -15,22 +15,22 @@ from typing import Any
 
 
 def euclidean_dist(emb1: np.ndarray, emb2: np.ndarray, axis=-1) -> Any:
-    """ 计算特征向量间的欧氏距离
+    """ Calculate the Euclidean distance between feature vectors
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param axis: 计算维度
-    :return: 欧式距离度量
+    :param axis: dimension of effect
+    :return: Euclidean distance
     """
     return np.sqrt(np.square(emb1 - emb2).sum(axis=axis))
 
 
 def cosine_similarity(emb1: np.ndarray, emb2: np.ndarray, dist: bool = False, axis: int = -1) -> Any:
-    """ 计算特征向量间的余弦相似度
+    """ calculate the cosine similarity score between feature vectors
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param dist: 是否返回余弦距离(归一化后)，取值范围[0, 1]
-    :param axis: 计算维度
-    :return: 欧式距离度量
+    :param dist: whether to return the cosine distance (after normalization), [0, 1]
+    :param axis: dimension of effect
+    :return: Cosine similarity
     """
     mod = np.linalg.norm(emb1, axis=axis) * np.linalg.norm(emb2, axis=axis)
     if np.all(mod == 0):
@@ -41,34 +41,34 @@ def cosine_similarity(emb1: np.ndarray, emb2: np.ndarray, dist: bool = False, ax
 
 
 def manhattan_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> Any:
-    """ 计算特征向量间的曼哈顿距离
+    """ calculate the Manhattan distance between feature vectors
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param axis: 计算维度
-    :return: 曼哈顿距离
+    :param axis: dimension of effect
+    :return: Manhattan distance
     """
     return np.sum(np.abs(emb1 - emb2), axis=axis)
 
 
 def minkowsk_dist(emb1: np.ndarray, emb2: np.ndarray, p: int, axis: int = -1) -> Any:
-    """ 计算特征向量间的闵可夫斯基距离，注意开方正负
+    """ calculate the Minkowsk distance between feature vectors
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param p: 范数
-    :param axis: 计算维度
-    :return: 闵可夫斯基距离
+    :param p: Norm
+    :param axis: dimension of effect
+    :return: Minkowsk distance
     """
     tmp = np.sum(np.power(emb1 - emb2, p), axis=axis)
     return np.power(tmp, 1 / p)
 
 
 def hamming_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
-    """ 计算特征向量的汉明距离
+    """ calculate the Hamming distance between feature vectors
 
     :param emb1: shape = [feature,]
     :param emb2: shape = [feature,]
-    :param axis: 计算维度
-    :return: 汉明距离
+    :param axis: dimension of effect
+    :return: Hamming distance
     """
     if len(emb1.shape) > 1 or len(emb2.shape) > 1:
         raise RuntimeError("the shape of emb1 and emb2 must be [feature,]")
@@ -79,11 +79,11 @@ def hamming_dist(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarr
 
 
 def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray) -> float:
-    """ 计算特征向量的Jaccard系数
+    """ calculate the Jaccard similarity between feature vectors
 
     :param emb1: shape = [feature,]
     :param emb2: shape = [feature,]
-    :return: Jaccard 系数
+    :return: Jaccard similarity
     """
     up = np.double(np.bitwise_and((emb1 != emb2), np.bitwise_or(emb1 != 0, emb2 != 0)).sum())
     down = np.double(np.bitwise_or(emb1 != 0, emb2 != 0).sum())
@@ -92,12 +92,12 @@ def jaccard_similarity(emb1: np.ndarray, emb2: np.ndarray) -> float:
 
 
 def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
-    """ 计算特征向量的皮尔森相关系数
+    """ calculate the Pearson similarity between feature vectors
 
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param axis: 计算维度
-    :return: 皮尔森相关系数
+    :param axis: dimension of effect
+    :return: Pearson similarity
     """
     diff1, diff2 = emb1 - np.mean(emb1, axis=axis)[..., np.newaxis], emb2 - np.mean(emb2, axis=axis)[..., np.newaxis]
     up = np.sum(diff1 * diff2, axis=axis)
@@ -106,10 +106,10 @@ def pearson_similarity(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np
 
 
 def mahalanobis_dist(emb1: np.ndarray, emb2: np.ndarray) -> list:
-    """ 计算特征向量间的马氏距离
+    """ calculate the Mahalanobis distance between feature vectors
     :param emb1: shape = [feature,]
     :param emb2: shape = [feature,]
-    :return: 马氏距离
+    :return: Mahalanobis distance
     """
     x = np.vstack([emb1, emb2])
     xt = x.T
@@ -126,22 +126,22 @@ def mahalanobis_dist(emb1: np.ndarray, emb2: np.ndarray) -> list:
 
 
 def kl_divergence(emb1: np.ndarray, emb2: np.ndarray, axis: int = -1) -> np.ndarray:
-    """ 计算特征向量的KL散度
+    """ calculate the KL divergence between feature vectors
 
     :param emb1: shape = [..., feature]
     :param emb2: shape = [..., feature]
-    :param axis: 计算维度
-    :return: KL散度
+    :param axis: dimension of effect
+    :return: KL divergence
     """
     return np.sum(emb1 * np.log(np.divide(emb1, emb2)), axis=axis)
 
 
 def levenshtein_dist(str1: str, str2: str):
-    """ 计算两个字符串之间的编辑距离
+    """ Calculate the edit distance between two strings
 
-    :param str1: 字符串
-    :param str2: 字符串
-    :return:编辑距离
+    :param str1: string
+    :param str2: string
+    :return: Edit distance
     """
     matrix = [[i + j for j in range(len(str2) + 1)] for i in range(len(str1) + 1)]
     for i in range(1, len(str1) + 1):

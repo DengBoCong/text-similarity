@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" TF-IDF及相关方法实现
+""" Implementation of the TF-IDF
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #

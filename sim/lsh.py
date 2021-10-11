@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" LSH及相关方法实现
+""" Implementation of LSH
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
