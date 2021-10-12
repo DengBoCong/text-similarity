@@ -11,6 +11,8 @@ from __future__ import print_function
 
 import abc
 import hashlib
+from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
 from typing import Any
 
 
@@ -108,24 +110,29 @@ class LSH(abc.ABC):
             return hashlib.sha1(key.encode("utf-8")).hexdigest()
 
 
-class Base(abc.ABC):
-    def __init__(self, svd_solver="auto", component_type="pca", **kwargs):
-        super().__init__()
+class PcaBase(abc.ABC):
+    """ Implement the base class with PCA cal
+    """
 
+    def __init__(self, svd_solver: str = "auto", component_type: str = "pca"):
+        """
+        :param svd_solver: svd solver
+        :param component_type: component type
+        :return: None
+        """
         self.component = None
         self.svd_solver = svd_solver
         self.component_type = component_type
 
-    def _get_component(self, n_components, component=None, **kwargs):
-        """ 获取实现类
-
-        :param component: 计算主成分实现类
-        :param kwargs:
+    def _get_component(self, n_components: int, component: Any = None) -> None:
+        """ Get the PCA implementation
+        :param n_components: desired dimensionality of output data
+        :param component: calculating PCA implementation class
         :return: None
         """
         if component:
             if not hasattr(component, "fit") or not hasattr(component, "components_"):
-                raise ValueError("component实现中必须实现fit()方法、components_属性")
+                raise ValueError("The fit() method and components_ attributes must be implemented in the component")
             else:
                 self.component = component
         elif self.component_type == "pca":
@@ -133,4 +140,4 @@ class Base(abc.ABC):
         elif self.component_type == "svd":
             self.component = TruncatedSVD(n_components=n_components, n_iter=7, random_state=0)
         else:
-            raise ValueError("请实例化主成分实现类")
+            raise ValueError("Please instantiate the PCA implementation class")

@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" Sentence Embedding transform
+""" Implementation of SIF and uSIF
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
@@ -9,32 +9,39 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import abc
-import math
 import collections
 import numpy as np
-from sim.tools import counter
-from sklearn.decomposition import PCA
-from sklearn.decomposition import TruncatedSVD
+from sim.base import PcaBase
+from typing import Any
 
 
-class SIF(Base):
+class SIF(PcaBase):
     """ Smooth Inverse Frequency (SIF)
-
-    对句子内部token表示计算加权平均值，并减去所有词向量
-    在第一个主成分上的投影，进而得到Sentence Embedding
+    Calculate the weighted average value for the token inside the
+    sentence, and subtract the projection of all word vectors on
+    the first principal component, and then get sentence embedding
 
     Example:
         from sentence2vec.transform import SIF
         sif = SIF(n_components=5, component_type="svd")
         sif.fit(tokens_list=sentences, vector_list=vector)
 
-    主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
+    PCA calculation depend on implementation of PAC and TruncatedSVD in
+    scikit-learn, custom implementation can also be passed in
     """
 
-    def __init__(self, n_components, parameter=1e-3, word_freq=None,
-                 svd_solver="auto", component_type="pca", name=None, **kwargs):
-        super().__init__(svd_solver=svd_solver, component_type=component_type, **kwargs)
+    def __init__(self, n_components: int, parameter: float = 1e-3, word_freq: dict = None,
+                 svd_solver: str = "auto", component_type: str = "pca", name: str = None):
+        """
+        :param n_components: desired dimensionality of output data
+        :param parameter: adjustable parameter
+        :param word_freq: word freq dict
+        :param svd_solver: svd solver
+        :param component_type: component type
+        :param name:
+        :return: None
+        """
+        super(SIF, self).__init__(svd_solver=svd_solver, component_type=component_type)
         self.n_components = n_components
         self.parameter = parameter
         self.word_freq = word_freq
@@ -43,16 +50,16 @@ class SIF(Base):
         self.prob_weight = dict()
         self.n_samples = None
 
-    def fit(self, tokens_list, vector_list, component=None, **kwargs):
-        """词向量数据构建
+    def fit(self, tokens_list: list, vector_list: list, component: Any = None) -> None:
+        """ Construct word vector
 
-        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
-        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
-        :param component: 计算主成分实现类
-        :return:
+        :param tokens_list: the token list of the original sentence, shape = [counts, seq_len]
+        :param vector_list: the token embedding, shape = [counts, seq_len, feature]
+        :param component: calculating PCA implementation class
+        :return: None
         """
         if self.word_freq and isinstance(self.word_freq, (dict, collections.Counter)):
-            raise TypeError("word_freq必须为词频字典")
+            raise TypeError("word_freq must be dict")
         else:
             self.word_freq = collections.Counter()
             for tokens in tokens_list:
@@ -65,10 +72,10 @@ class SIF(Base):
 
         self.n_samples = len(tokens_list)
         self.pairs = zip(tokens_list, vector_list)
-        self._get_component(self.n_components, component, **kwargs)
+        self._get_component(self.n_components, component)
 
-    def _get_words_weight(self, words):
-        """ 获取sentences词频权重
+    def _get_words_weight(self, words: list) -> list:
+        """ get the sentences word freq weight
 
         :param words: sentences
         :return: count
@@ -82,10 +89,10 @@ class SIF(Base):
 
         return weights
 
-    def transform(self, n_features):
-        """ 词向量转换
+    def transform(self, n_features: int) -> np.ndarray:
+        """ Conversion word vector
 
-        :param n_features: 特征维大小
+        :param n_features: feature size
         :return: vector
         """
         sentence_list = np.zeros((self.n_samples, n_features))
@@ -98,23 +105,34 @@ class SIF(Base):
         return sentence_list - sentence_list.dot(u.transpose()).dot(u)
 
 
-class uSIF(Base):
+class uSIF(PcaBase):
     """ unsupervised Smooth Inverse Frequency (uSIF)
 
-    对句子的词向量进行归一化，然后使用它们的加权平均计算句向
-    量，并减去前m个主成分上的投影，进而得到Sentence Embedding
+    Normalize the word vector, then use their weighted average to
+    calculate sentence vectors. And subtract the projections on the
+    first m principal components, and then get the sentence embedding
 
     Example:
         from sentence2vec.transform import uSIF
         usif = uSIF(n_components=5, n=1, component_type="svd")
         usif.fit(tokens_list=sentences, vector_list=vector)
 
-    主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
+    PCA calculation depend on implementation of PAC and TruncatedSVD in
+    scikit-learn, custom implementation can also be passed in
     """
 
     def __init__(self, n_components, n=11, word_freq=None,
-                 svd_solver="auto", component_type="pca", name=None, **kwargs):
-        super().__init__(svd_solver=svd_solver, component_type=component_type, **kwargs)
+                 svd_solver="auto", component_type="pca", name=None):
+        """
+        :param n_components: desired dimensionality of output data
+        :param n: adjustable parameter
+        :param word_freq: word freq dict
+        :param svd_solver: svd solver
+        :param component_type: component type
+        :param name:
+        :return: None
+        """
+        super(uSIF, self).__init__(svd_solver=svd_solver, component_type=component_type)
         self.n_components = n_components
         self.n = n
         self.word_freq = word_freq
@@ -124,19 +142,19 @@ class uSIF(Base):
         self.prob_weight = None
         self.n_samples = None
 
-    def fit(self, tokens_list, vector_list, component=None, **kwargs):
-        """词向量数据构建
+    def fit(self, tokens_list: list, vector_list: list, component: Any = None) -> None:
+        """ Construct word vector
 
-        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
-        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
-        :param component: 计算主成分实现类
-        :return:
+        :param tokens_list: the token list of the original sentence, shape = [counts, seq_len]
+        :param vector_list: the token embedding, shape = [counts, seq_len, feature]
+        :param component: calculating PCA implementation class
+        :return: None
         """
         if not (isinstance(self.n, int) and self.n > 0):
-            raise TypeError("n必须为正整数")
+            raise TypeError("n must be a positive integer")
 
         if self.word_freq and isinstance(self.word_freq, (dict, collections.Counter)):
-            raise TypeError("word_freq必须为词频字典")
+            raise TypeError("word_freq must be dict")
         else:
             self.word_freq = collections.Counter()
             for tokens in tokens_list:
@@ -150,18 +168,18 @@ class uSIF(Base):
         z = 0.5 * vocab_size
 
         if alpha == 0.0:
-            raise ValueError("n设置过大，请重新设置")
+            raise ValueError("n is too large, please reset")
 
         self.parameter = (1 - alpha) / (alpha * z)
         self.prob_weight = lambda word: (self.parameter / (0.5 * self.parameter + self.word_freq[word] / total_word))
         self.n_samples = len(tokens_list)
         self.pairs = zip(tokens_list, vector_list)
-        self._get_component(self.n_components, component, **kwargs)
+        self._get_component(self.n_components, component)
 
-    def transform(self, n_features):
-        """ 词向量转换
+    def transform(self, n_features: int) -> np.ndarray:
+        """ Conversion word vector
 
-        :param n_features: 特征维大小
+        :param n_features: feature size
         :return: vector
         """
         proj = lambda a, b: a.dot(b.transpose()) * b
@@ -179,9 +197,3 @@ class uSIF(Base):
             sentence_list = [vs - lambda_i * proj(vs, pc) for vs in sentence_list]
 
         return np.array(sentence_list)
-
-
-
-
-class WMD(Base):
-    pass
