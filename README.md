@@ -66,3 +66,20 @@ print(min_hash.search(candidates, query))  # index in candidates
 ```
 
 ### SIF
++ [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
++ [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
+```python
+sentences = [["token1", "token2", "..."], ...]
+vector = [[[1, 1, 1], [2, 2, 2], [...]], ...]
+from sim.sif_usif import SIF
+from sim.sif_usif import uSIF
+
+sif = SIF(n_components=5, component_type="svd")
+sif.fit(tokens_list=sentences, vector_list=vector)
+
+usif = uSIF(n_components=5, n=1, component_type="svd")
+usif.fit(tokens_list=sentences, vector_list=vector)
+```
+
+### Siamese LSTM
++ [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
