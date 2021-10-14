@@ -18,7 +18,8 @@
 + TF-IDF
 + BM25
 + LSH
-+ SIF
++ SIF/uSIF
++ Siamese RNN
 
 # Usages
 
