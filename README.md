@@ -12,14 +12,13 @@
 </div>
 
 # Overview
-
-本工具对每种方法都独立成一个文件，方便阅读代码，每个方法参数和关键代码处都进行了详细的注释，方便方法的使用！
-
-+ TF-IDF
-+ BM25
-+ LSH
-+ SIF/uSIF
-+ Siamese RNN
++ **Dataset**: Chinese/English Corpus, ☞  [Click Here](https://github.com/DengBoCong/text-similarity/tree/main/corpus)
++ **The implemented method is as follows:**：
+   + TF-IDF
+   + BM25
+   + LSH
+   + SIF/uSIF
+   + Siamese RNN
 
 # Usages
 
@@ -67,8 +66,9 @@ print(min_hash.search(candidates, query))  # index in candidates
 ```
 
 ### SIF
-+ [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
-+ [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
++ Related papers
+   + [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
+   + [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
 ```python
 sentences = [["token1", "token2", "..."], ...]
 vector = [[[1, 1, 1], [2, 2, 2], [...]], ...]
@@ -83,4 +83,5 @@ usif.fit(tokens_list=sentences, vector_list=vector)
 ```
 
 ### Siamese LSTM
-+ [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
++ Related papers
+   + [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
