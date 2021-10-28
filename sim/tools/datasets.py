@@ -74,18 +74,16 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
     return tokenizer
 
 
-def datasets_generator(file_path: str, batch_size: int, seed: int, split: str = "\t"):
+def datasets_generator(file_path: str, batch_size: int, split: str = "\t"):
     """ Datasets generator
     :param file_path: tokens pairs file path
     :param batch_size: batch size
-    :param seed: random seed
     :param split: separator between tokens pairs
     :return: None
     """
     with open(file_path, "r", encoding="utf-8") as file:
         datasets = file.readlines()
 
-        np.random.seed(seed=seed)
         np.random.shuffle(datasets)
 
         steps = len(datasets) // batch_size
@@ -97,4 +95,4 @@ def datasets_generator(file_path: str, batch_size: int, seed: int, split: str = 
                 input2.append(list(map(int, sample[1].split(" "))))
                 label.append(int(sample[2]))
 
-            yield np.asarray(input1), np.asarray(input2), np.asarray(label)
+            yield np.asarray(input1), np.asarray(input2), np.asarray(label), steps
