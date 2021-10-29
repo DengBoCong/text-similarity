@@ -19,17 +19,17 @@ from sim.tools.tokenizer import Tokenizer
 def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
                           seg_model: str = "jieba", pad_max_len: int = None, padding: str = 'post',
                           truncating: str = 'post', value: int = 0, print_count: int = 1000) -> Tokenizer:
-    """ Text pair to token id.
-    :param file_path: raw text file path, text format: <text1><split><text2><split><label>
-    :param save_path: save path
-    :param split: separator between text pairs
-    :param seg_model: the model fo word segmentation tool, support jieba, lac, pkuseg. If None, no word segmentation
+    """ 将Text pair转换为token id
+    :param file_path: 未处理的文本数据路径，文本格式: <text1><split><text2><split><label>
+    :param save_path: 保存处理后的数据路径
+    :param split: text pair的分隔符
+    :param seg_model: 分词工具model，支付jieba, lac, pkuseg
     :param pad_max_len: padding size
-    :param padding: filling type, pre is in front, post is in back
-    :param truncating: truncating type, pre is in front, post is in back
-    :param value: filling value, float or string
-    :param print_count: print log
-    :return: Tokenizer
+    :param padding: 填充类型，pre在前，post在后
+    :param truncating: 截断类型，pre在前，post在后
+    :param value: 填充值类型，float或者是string
+    :param print_count: 处理print_count数量数据打印日志
+    :return: 分词器
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError("Raw text file not found")
@@ -76,9 +76,9 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
 
 def datasets_generator(file_path: str, batch_size: int, split: str = "\t"):
     """ Datasets generator
-    :param file_path: tokens pairs file path
+    :param file_path: 已分词的数据路径
     :param batch_size: batch size
-    :param split: separator between tokens pairs
+    :param split: token pair的分隔符
     :return: None
     """
     with open(file_path, "r", encoding="utf-8") as file:

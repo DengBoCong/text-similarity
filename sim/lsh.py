@@ -16,7 +16,7 @@ from typing import Any
 
 
 class MinHash(LSH):
-    """ Implementation of min-hash LSH
+    """ min-hash LSH实现
     """
 
     def __init__(self):
@@ -24,9 +24,9 @@ class MinHash(LSH):
 
     @staticmethod
     def gen_sig_vec(matrix: np.ndarray) -> list:
-        """ generate signature vector
-        :param matrix: must be a two-dimensional matrix
-        :return: signature vector
+        """ 生成签名向量
+        :param matrix: 必须是二维矩阵
+        :return: 签名向量
         """
         count = 0
         seq_list = [i for i in range(matrix.shape[0])]
@@ -47,10 +47,10 @@ class MinHash(LSH):
         return result
 
     def gen_sig_matrix(self, matrix: np.ndarray, n: int) -> np.ndarray:
-        """ generate signature vector matrix
-        :param matrix: must be a two-dimensional matrix
-        :param n: the rows of signature vector matrix
-        :return: signature vector matrix
+        """ 生成签名向量matrix
+        :param matrix: 必须是二维矩阵
+        :param n: 签名向量matrix的行数
+        :return: 签名向量matrix
         """
         result = list()
 
@@ -60,15 +60,15 @@ class MinHash(LSH):
         return np.array(result)
 
     def min_hash(self, matrix: np.ndarray, band: int = 20, row: int = 5, hash_obj: str = "md5") -> dict:
-        """ the core of min-hash
-        :param matrix: must be a two-dimensional matrix
-        :param band: divide the matrix into band blocks
-        :param row: the size of each block is row
-        :param hash_obj: the method used to calculate the hash
-        :return: a hash bucket dict, where key is the hash-val and value is the number of columns (candidate set index)
+        """ min-hash核心代码
+        :param matrix: 必须是二维矩阵
+        :param band: 将矩阵划分为bank的数量
+        :param row: t每个block的行数
+        :param hash_obj: 计算hash值的实现类
+        :return: hash bucket字典，其中key是hash-val，value是行数(候选集索引)
         """
         hash_bucket = dict()
-        # This determines how many permutations need to be performed on the matrix
+        # 决定了在矩阵上重排列的次数
         n = band * row
         sig_matrix = self.gen_sig_matrix(matrix, n)
         begin, end, count = 0, row, 0
@@ -90,12 +90,12 @@ class MinHash(LSH):
 
     def search(self, candidates: Any, query: Any, band: int = 20, row: int = 5, hash_obj: str = "md5") -> set:
         """ min-hash Match search
-        :param candidates: must be a two-dimensional equal-length list or numpy array
-        :param query: must be a one-dimensional list or numpy array, the length is the same as the length of candidates
-        :param band: divide the matrix into band blocks
-        :param row: the size of each block is row
-        :param hash_obj: the method used to calculate the hash
-        :return: search result collection
+        :param candidates: 必须是二维等长list或numpy array
+        :param query: 必须是一维list或numpy array, 长度与候选集长度相同
+        :param band: 将矩阵划分为bank的数量
+        :param row: t每个block的行数
+        :param hash_obj: 计算hash值的实现类
+        :return: search结果集合
         """
         if not isinstance(candidates, (list, np.ndarray)):
             raise TypeError("must be list or numpy array")
@@ -125,7 +125,7 @@ class MinHash(LSH):
 
 
 class TableNode(object):
-    """ The node of Hash table
+    """ Hash table的节点
     """
 
     def __init__(self, index):
@@ -134,7 +134,7 @@ class TableNode(object):
 
 
 class E2LSH(LSH):
-    """ Implementation of P-table LSH
+    """ P-table LSH实现类
     """
 
     def __init__(self):
@@ -142,10 +142,10 @@ class E2LSH(LSH):
 
     @staticmethod
     def gen_para(length: int, r: int = 1) -> tuple:
-        """ generate para distribution
-        :param length: vector length
-        :param r: threshold
-        :return: para distribution vector
+        """ 生成para分布
+        :param length: 向量长度
+        :param r: 阈值
+        :return: para分布向量
         """
         gauss = list()
         for i in range(length):
@@ -155,11 +155,11 @@ class E2LSH(LSH):
         return gauss, uniform
 
     def gen_e2lsh_family(self, length: int, k: int = 20, r: int = 1) -> list:
-        """ generate p-table lsh cluster
-        :param length: vector length
-        :param k: num of generations
-        :param r: threshold
-        :return: distribution cluster
+        """ 生成p-table的lsh cluster
+        :param length: 向量长度
+        :param k: 生成的数量
+        :param r: 阈值
+        :return: 分布cluster
         """
         result = list()
         for i in range(k):
@@ -169,11 +169,11 @@ class E2LSH(LSH):
 
     @staticmethod
     def gen_hash_values(e2lsh_family: list, vector: int, r: int = 1) -> list:
-        """ Calculate the hash value
-        :param e2lsh_family: distribution cluster
+        """ 计算hash值
+        :param e2lsh_family: 分布cluster
         :param vector:
-        :param r: adjustable factor
-        :return: hash value list
+        :param r: 可调参数
+        :return: hash value列表
         """
         hash_values = list()
 
@@ -185,25 +185,25 @@ class E2LSH(LSH):
 
     @staticmethod
     def h2(hash_values: list, fp_rand: list, c: int = pow(2, 32) - 5, k: int = 20) -> int:
-        """ Calculate the fingerprint value
-        :param hash_values: hash value list
-        :param fp_rand: a set of random values used to generate fingerprints
-        :param k: num of generations
-        :param c: adjustable factor
-        :return: fingerprint value, int
+        """ 计算fingerprint值
+        :param hash_values: hash value列表
+        :param fp_rand: 一组用于生成fingerprints的随机数
+        :param k: 生成数量
+        :param c: 可调参数
+        :return: fingerprint值，int类型
         """
         return int(sum([(hash_values[i] * fp_rand[i]) for i in range(k)]) % c)
 
     def e2lsh(self, candidates: Any, c: int = pow(2, 32) - 5, k: int = 20,
               L: int = 5, r: int = 1, table_size: int = 20) -> tuple:
-        """ the core of E2LSH
-        :param candidates: must be a two-dimensional equal-length list
-        :param c: adjustable factor
-        :param k: num of generations
-        :param L: adjustable factor
-        :param r: adjustable factor
-        :param table_size: hash table size
-        :return: return hash table, hash func, fp_rand(a set of random values used to generate fingerprints)
+        """ E2LSH的核心实现
+        :param candidates: 必须是二维等长列表
+        :param c: 可调参数
+        :param k: 生成数量
+        :param L: 可调参数
+        :param r: 可调参数
+        :param table_size: hash table大小
+        :return: hash table,hash func,fp_rand(一组用于生成fingerprints的随机数)
         """
         hash_table = [TableNode(i) for i in range(table_size)]
 
@@ -233,14 +233,14 @@ class E2LSH(LSH):
     def search(self, candidates: Any, query: Any, c: int = pow(2, 32) - 5,
                k: int = 20, L: int = 5, r: int = 1, table_size: int = 20) -> set:
         """ min-hash Match search
-        :param candidates: must be a two-dimensional equal-length list
-        :param query: must be a one-dimensional list or numpy array, the length is the same as the length of candidates
-        :param c: adjustable factor
-        :param k: num of generations
-        :param L: adjustable factor
-        :param r: adjustable factor
-        :param table_size: hash table size
-        :return: search result collection
+        :param candidates: 必须是二维等长列表
+        :param query: 必须是一维list或numpy array, 长度与候选集长度相同
+        :param c: 可调参数
+        :param k: 生成数量
+        :param L: 可调参数
+        :param r: 可调参数
+        :param table_size: hash table大小
+        :return: search结果集合
         """
         if not isinstance(candidates, list) and not isinstance(candidates[0], list):
             raise TypeError("must be 2-d list")

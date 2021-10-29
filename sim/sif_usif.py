@@ -13,29 +13,28 @@ import collections
 import numpy as np
 from sim.base import PcaBase
 from typing import Any
+from typing import NoReturn
 
 
 class SIF(PcaBase):
     """ Smooth Inverse Frequency (SIF)
-    Calculate the weighted average value for the token inside the
-    sentence, and subtract the projection of all word vectors on
-    the first principal component, and then get sentence embedding
+    对句子内部token表示计算加权平均值，并减去所有词向量
+    在第一个主成分上的投影，进而得到Sentence Embedding
 
     Example:
         from sentence2vec.transform import SIF
         sif = SIF(n_components=5, component_type="svd")
         sif.fit(tokens_list=sentences, vector_list=vector)
 
-    PCA calculation depend on implementation of PAC and TruncatedSVD in
-    scikit-learn, custom implementation can also be passed in
+    主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
     """
 
     def __init__(self, n_components: int, parameter: float = 1e-3, word_freq: dict = None,
                  svd_solver: str = "auto", component_type: str = "pca", name: str = None):
         """
-        :param n_components: desired dimensionality of output data
-        :param parameter: adjustable parameter
-        :param word_freq: word freq dict
+        :param n_components: 输出数据的维度
+        :param parameter: 可调参数
+        :param word_freq: 词频字典
         :param svd_solver: svd solver
         :param component_type: component type
         :param name:
@@ -50,12 +49,12 @@ class SIF(PcaBase):
         self.prob_weight = dict()
         self.n_samples = None
 
-    def fit(self, tokens_list: list, vector_list: list, component: Any = None) -> None:
-        """ Construct word vector
+    def fit(self, tokens_list: list, vector_list: list, component: Any = None) -> NoReturn:
+        """ 词向量数据构建
 
-        :param tokens_list: the token list of the original sentence, shape = [counts, seq_len]
-        :param vector_list: the token embedding, shape = [counts, seq_len, feature]
-        :param component: calculating PCA implementation class
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
+        :param component: 计算主成分实现类
         :return: None
         """
         if self.word_freq and isinstance(self.word_freq, (dict, collections.Counter)):
@@ -75,7 +74,7 @@ class SIF(PcaBase):
         self._get_component(self.n_components, component)
 
     def _get_words_weight(self, words: list) -> list:
-        """ get the sentences word freq weight
+        """ 获取sentences词频权重
 
         :param words: sentences
         :return: count
@@ -90,9 +89,9 @@ class SIF(PcaBase):
         return weights
 
     def transform(self, n_features: int) -> np.ndarray:
-        """ Conversion word vector
+        """ 词向量转换
 
-        :param n_features: feature size
+        :param n_features: 特征维大小
         :return: vector
         """
         sentence_list = np.zeros((self.n_samples, n_features))
@@ -108,25 +107,23 @@ class SIF(PcaBase):
 class uSIF(PcaBase):
     """ unsupervised Smooth Inverse Frequency (uSIF)
 
-    Normalize the word vector, then use their weighted average to
-    calculate sentence vectors. And subtract the projections on the
-    first m principal components, and then get the sentence embedding
+    对句子的词向量进行归一化，然后使用它们的加权平均计算句向
+    量，并减去前m个主成分上的投影，进而得到Sentence Embedding
 
     Example:
         from sentence2vec.transform import uSIF
         usif = uSIF(n_components=5, n=1, component_type="svd")
         usif.fit(tokens_list=sentences, vector_list=vector)
 
-    PCA calculation depend on implementation of PAC and TruncatedSVD in
-    scikit-learn, custom implementation can also be passed in
+    主成分计算依赖scikit-learn中PAC和TruncatedSVD实现，也可传入自定义实现
     """
 
     def __init__(self, n_components, n=11, word_freq=None,
                  svd_solver="auto", component_type="pca", name=None):
         """
-        :param n_components: desired dimensionality of output data
-        :param n: adjustable parameter
-        :param word_freq: word freq dict
+        :param n_components: 输出数据的维度
+        :param n: 可调参数
+        :param word_freq: 词频字典
         :param svd_solver: svd solver
         :param component_type: component type
         :param name:
@@ -143,11 +140,11 @@ class uSIF(PcaBase):
         self.n_samples = None
 
     def fit(self, tokens_list: list, vector_list: list, component: Any = None) -> None:
-        """ Construct word vector
+        """ 词向量数据构建
 
-        :param tokens_list: the token list of the original sentence, shape = [counts, seq_len]
-        :param vector_list: the token embedding, shape = [counts, seq_len, feature]
-        :param component: calculating PCA implementation class
+        :param tokens_list: 原句子的token列表，shape = [counts, seq_len]
+        :param vector_list: 句子的token向量化列表，shape = [counts, seq_len, feature]
+        :param component: 计算主成分实现类
         :return: None
         """
         if not (isinstance(self.n, int) and self.n > 0):
@@ -177,9 +174,9 @@ class uSIF(PcaBase):
         self._get_component(self.n_components, component)
 
     def transform(self, n_features: int) -> np.ndarray:
-        """ Conversion word vector
+        """ 词向量转换
 
-        :param n_features: feature size
+        :param n_features: 特征维大小
         :return: vector
         """
         proj = lambda a, b: a.dot(b.transpose()) * b

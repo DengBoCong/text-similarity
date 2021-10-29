@@ -14,25 +14,26 @@ import hashlib
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
 from typing import Any
+from typing import NoReturn
 
 
 class IdfBase(object):
-    """ Implement the base class with idf cal
+    """ 实现了idf计算的基类
     """
 
     def __init__(self, tokens_list: list = None, file_path: str = None, file_list: list = None, split: str = None):
-        """ tokens_list、file_path and file_list must pass one, when tokens_list is a text list, split must pass
-        :param tokens_list: text list or token list
-        :param file_path: the path of the word segmented text file, one text per line
-        :param file_list: file list, one text per line
-        :param split: if the list mode is not passed, element is regarded as a list, and the file mode must be passed
+        """ tokens_list、file_path和file_list必传其一，当tokens_list时text list时，split必传
+        :param tokens_list: text list或token list
+        :param file_path: 已分词的文本数据路径，一行一个文本
+        :param file_list: file list，每个文件一行一个文本
+        :param split: 如果在list模式没有传，则视element为list，file模式必传
         :return: None
         """
         self.tokens_list = list()
         self.counts = list()
         self.document_count = 0
         self.token_docs = dict()
-        self.length_average = 0.  # Average doc length
+        self.length_average = 0.  # 平均文本长度
 
         if tokens_list and not split:
             for tokens in tokens_list:
@@ -52,8 +53,8 @@ class IdfBase(object):
 
         self.length_average /= self.document_count
 
-    def _init_token_feature(self, tokens: list) -> None:
-        """ Initialize the feature variables of the corpus text
+    def _init_token_feature(self, tokens: list) -> NoReturn:
+        """ 初始化语料文本的特征变量
         :param tokens: tokens list
         :return: None
         """
@@ -70,10 +71,10 @@ class IdfBase(object):
         for token in set(tokens):
             self.token_docs[token] = self.token_docs.get(token, 0) + 1
 
-    def _init_file_token_feature(self, file_path: str, split: str) -> None:
-        """ Initialize the feature variables of the corpus text, file mode
+    def _init_file_token_feature(self, file_path: str, split: str) -> NoReturn:
+        """ 初始化语料文本的特征变量，file模式
         :param file_path: file path
-        :param split:
+        :param split: 分隔符
         :return: None
         """
         with open(file_path, "r", encoding="utf-8") as file:
@@ -85,7 +86,7 @@ class IdfBase(object):
 
 
 class LSH(abc.ABC):
-    """ Base class that implements LSH
+    """ 实现了hash的LSH基类
     """
 
     def __init__(self):
@@ -93,15 +94,15 @@ class LSH(abc.ABC):
 
     @abc.abstractmethod
     def search(self, *args, **kwargs):
-        """ Match search, return search result
+        """ 匹配搜索，返回搜索结果
         """
         raise NotImplementedError("Must be implemented in subclasses.")
 
     @staticmethod
     def hash(key: str, hash_obj: str = "md5") -> Any:
-        """ Used to calculate the hash value
+        """ 用于计算hash值
         :param key: hash key
-        :param hash_obj: the method used to calculate the hash
+        :param hash_obj: 用于计算hash值的方法
         :return:
         """
         if hash_obj == "md5":
@@ -111,7 +112,7 @@ class LSH(abc.ABC):
 
 
 class PcaBase(abc.ABC):
-    """ Implement the base class with PCA cal
+    """ 实现了PCA的基类
     """
 
     def __init__(self, svd_solver: str = "auto", component_type: str = "pca"):
@@ -124,10 +125,10 @@ class PcaBase(abc.ABC):
         self.svd_solver = svd_solver
         self.component_type = component_type
 
-    def _get_component(self, n_components: int, component: Any = None) -> None:
-        """ Get the PCA implementation
-        :param n_components: desired dimensionality of output data
-        :param component: calculating PCA implementation class
+    def _get_component(self, n_components: int, component: Any = None) -> NoReturn:
+        """ 获取PCA实现
+        :param n_components: 输出数据的维度
+        :param component: PCA的实现类
         :return: None
         """
         if component:

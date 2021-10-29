@@ -15,12 +15,12 @@ import tensorflow as tf
 def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
                                units: int, rnn: str, share: bool = True) -> tf.Model:
     """ Siamese LSTM with Embedding
-    :param emb_dim: Dimension of the dense embedding
-    :param vec_dim: Feature size, max length
-    :param vocab_size: Size of the vocabulary, i.e. maximum integer index + 1.
-    :param units: Dimensionality of the output space
-    :param rnn: Types of RNN
-    :param share: Whether to share weight
+    :param emb_dim: embedding dim
+    :param vec_dim: 特征维度大小
+    :param vocab_size: 词表大小，例如为token最大整数index + 1.
+    :param units: 输出空间的维度
+    :param rnn: RNN的实现类型
+    :param share: 是否共享权重
     :return: Model
     """
     input1 = tf.keras.Input(shape=(vec_dim,))

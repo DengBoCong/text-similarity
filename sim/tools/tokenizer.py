@@ -20,40 +20,40 @@ from typing import Any
 
 
 class Tokenizer(object):
-    """ Implementation of Text-Word-Segmentation tool and Tokenizer
+    """ 文本分词工具及Tokenizer
     """
 
     def __init__(self, num_words=None, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True,
                  split=" ", char_level=False, oov_token=None, document_count=0) -> None:
         """
-        :param num_words: the maximum number of tokens saved, based on the freq
-        :param filters: filter rules, filter all punctuation marks, tabs, newlines, etc. by default
-        :param lower: whether to convert text to lowercase
-        :param split: delimiter
-        :param char_level: whether to use character level as token
-        :param oov_token: unregistered words
-        :param document_count: total text
+        :param num_words: 保存的最大token数，基于出现频率
+        :param filters: 过滤规则, 默认过滤所有标点符号、制表符、换行符等
+        :param lower: 是否将文本转换为小写
+        :param split: 分隔符
+        :param char_level: 是否以字符级作为token
+        :param oov_token: 未登录词
+        :param document_count: 文本总数
         """
 
-        self.word_counts = OrderedDict()  # word count in total text
-        self.word_docs = defaultdict(int)  # record the number of times a token appears in the text
+        self.word_counts = OrderedDict()  # 总文本中词计数
+        self.word_docs = defaultdict(int)  # 某个token在文本中出现的次数
         self.filters = filters
         self.split = split
         self.lower = lower
         self.num_words = num_words
-        self.document_count = document_count  # document count
+        self.document_count = document_count  # 文本计数
         self.char_level = char_level
         self.oov_token = oov_token
-        self.index_docs = defaultdict(int)  # index-docs count, dict
+        self.index_docs = defaultdict(int)  # 索引-出现文本计数 词典
         self.word_index = {}
         self.index_word = {}
         self.counts = list()
-        self.length_average = 0.  # average document length
+        self.length_average = 0.  # 文档平均长度
 
     def fit_on_texts(self, texts: list) -> None:
-        """ Update internal vocabulary
-        :param texts: text list
-        :return: seq after conversion
+        """ 更新内部词汇表
+        :param texts: 文本列表
+        :return: 转换后的seq
         """
         for text in texts:
             self.document_count += 1
@@ -82,14 +82,14 @@ class Tokenizer(object):
         wcounts = list(self.word_counts.items())
         wcounts.sort(key=lambda x: x[1], reverse=True)
 
-        # put oov_token at the beginning of the vocabulary
+        # 将未登录词放在词汇表开头
         if self.oov_token is None:
             sorted_voc = []
         else:
             sorted_voc = [self.oov_token]
         sorted_voc.extend(wc[0] for wc in wcounts)
 
-        # 0 as a reserved index
+        # 索引0作为保留索引
         self.word_index = dict(zip(sorted_voc, list(range(1, len(sorted_voc) + 1))))
 
         self.index_word = {c: w for w, c in self.word_index.items()}
@@ -98,15 +98,15 @@ class Tokenizer(object):
             self.index_docs[self.word_index[w]] = c
 
     def texts_to_sequences(self, texts: list) -> list:
-        """ Convert the text into a token seq. Note that only the first num_words
-            tokens will be converted, and the rest will be converted to oov_token words
-        :param texts: text list
-        :return: seq after conversion
+        """ 将文本序列转化为token序列，注意了，只有前
+            num_words个token才会被转换，其余转换为oov_token词
+        :param texts: 文本列表
+        :return: 转换后的seq
         """
         return list(self.texts_to_sequences_generator(texts))
 
     def texts_to_sequences_generator(self, texts: list):
-        """ Generator that converts text seq into token seq
+        """ 将文本序列转化为token序列的生成器
         """
         num_words = self.num_words
         oov_token_index = self.word_index.get(self.oov_token)
@@ -134,17 +134,17 @@ class Tokenizer(object):
             yield vect
 
     def sequences_to_texts(self, sequences: list) -> list:
-        """ Generator that converts token seq into text seq
-        :param sequences: token seq
-        :return: text after conversion
+        """ 将token序列转化为文本序列的生成器
+        :param sequences: token序列
+        :return: 转换后的文本序列
         """
         return list(self.sequences_to_texts_generator(sequences))
 
     def sequences_to_texts_generator(self, sequences: list):
-        """ Convert the token seq into a text. Note that
-            only the first num_words tokens will be converted
-        :param sequences: token seq
-        :return: text after conversion
+        """ 将token序列转化为文本序列，注意了，只有前
+            num_words个token才会被转换，其余转换为token词
+        :param sequences: token序列
+        :return: 转换后的文本序列
         """
         num_words = self.num_words
         oov_token_index = self.word_index.get(self.oov_token)
@@ -164,11 +164,11 @@ class Tokenizer(object):
             yield vect
 
     def get_tf_idf_score(self, query: list, index: int, e: int = 0.5) -> float:
-        """ Calculate the tf-idf score between the token seq and the seq of specified index
-        :param query: token seq
-        :param index: the index of the specified seq
-        :param e: adjustable factor
-        :return: tf-idf score
+        """ 计算文本序列与文本列表指定的文本序列的tf-idf相似度分数
+        :param query: 文本序列
+        :param index: 指定文本列表中的文本序列索引
+        :param e: 调教系数
+        :return: tf-idf分数
         """
         score = 0.
         total = sum(self.counts[index].values())
@@ -181,12 +181,12 @@ class Tokenizer(object):
         return score
 
     def tf_idf_retrieval(self, query: list, top_k: int = 0, e: int = 0.5) -> list:
-        """ Retrieve the top-k seq with the highest tf-idf score in the list. When top-k is 0,
-            return the tf-idf scores of all seq in the text list. Sort in desc.
-        :param query: token list
-        :param top_k: the num of return
-        :param e: adjustable factor
-        :return: tf-idf scores
+        """ 检索文本列表中tf-idf分数最高的前top-k个文本序列，当
+            top-k为0时，返回文本列表中所有文本序列与指定文本序列的td-idf分数
+        :param query: 文本序列
+        :param top_k: 返回的数量
+        :param e: 调教系数
+        :return: tf-idf分数列表
         """
         scores = list()
         for i in range(self.document_count):
@@ -197,17 +197,17 @@ class Tokenizer(object):
 
     def get_bm25_score(self, query: list, index: int, q_tf_dict: dict = None, q_total: int = 0,
                        if_tq: bool = True, e: int = 0.5, b=0.75, k1=2, k2=1.2) -> float:
-        """ Calculate the bm25 score between the token seq and the seq of specified index
-        :param query: token list
-        :param index: the index of the specified seq
-        :param q_tf_dict: token dict
-        :param q_total: the num of tokens in the query
-        :param if_tq: whether to add the relevance between the word and the query, the long query is enabled by default
-        :param e: adjustable factor
-        :param b: adjustable factor, (0,1)
-        :param k1: adjustable factor, [1.2, 2.0]
-        :param k2: adjustable factor, [1.2, 2.0]
-        :return: BM25 score
+        """ 计算文本序列与文本列表指定的文本序列的BM25相似度分数
+        :param query: 文本序列
+        :param index: 指定文本列表中的文本序列索引
+        :param q_tf_dict: query的token字典，用来配合批量计算分数使用，提高效率
+        :param q_total: query的token总数，同上
+        :param if_tq: 是否刻画单词与query之间的相关性，长的query默认开启
+        :param e: 调教系数
+        :param b: 可调参数，(0,1)
+        :param k1: 可调正参数，[1.2, 2.0]
+        :param k2: 可调正参数，[1.2, 2.0]
+        :return: BM25分数
         """
         score = 0.
         d_total = sum(self.counts[index].values())
@@ -236,16 +236,16 @@ class Tokenizer(object):
 
     def bm25_idf_retrieval(self, query: list, top_k: int = 0, if_tq: bool = True,
                            e: int = 0.5, b=0.75, k1=2, k2=1.2) -> list:
-        """ Retrieve the top-k seq with the highest bm25 score in the list. When top-k
-            is 0, return the bm25 scores of all seq in the text list. Sort in desc.
-        :param query: token list
-        :param top_k: the num of return
-        :param if_tq: whether to add the relevance between the word and the query, the long query is enabled by default
-        :param e: adjustable factor
-        :param b: adjustable factor, (0,1)
-        :param k1: adjustable factor, [1.2, 2.0]
-        :param k2: adjustable factor, [1.2, 2.0]
-        :return: BM25 scores
+        """ 检索文本列表中BM25分数最高的前top-k个文本序列，当
+            top-k为0时，返回文本列表中所有文本序列与指定文本序列的BM25分数
+        :param query: 文本序列
+        :param top_k: 返回的数量
+        :param if_tq: 是否刻画单词与query之间的相关性，长的query默认开启
+        :param e: 调教系数
+        :param b: 可调参数，(0,1)
+        :param k1: 可调正参数，[1.2, 2.0]
+        :param k2: 可调正参数，[1.2, 2.0]
+        :return: BM25分数列表
         """
         scores = list()
         q_tf_dict = None
@@ -265,7 +265,7 @@ class Tokenizer(object):
         return scores if top_k == 0 else scores[:top_k]
 
     def get_config(self) -> dict:
-        """ Get the configuration dict of the Tokenizer
+        """ 获取分词器的配置字典
         """
         json_word_counts = json.dumps(self.word_counts)
         json_word_docs = json.dumps(self.word_docs)
@@ -292,7 +292,7 @@ class Tokenizer(object):
         }
 
     def to_json(self, **kwargs) -> str:
-        """ Convert the Tokenizer configuration to json format and return
+        """ 将分词器相关数据转化为json格式返回
         """
         config = self.get_config()
         tokenizer_config = {
@@ -303,11 +303,11 @@ class Tokenizer(object):
 
 
 def text_to_word_sequence(text, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True, split=" ") -> list:
-    """ Convert text to word list
-    :param text: test list
-    :param filters: filter rules, filter all punctuation marks, tabs, newlines, etc. by default
-    :param lower: whether to convert text to lowercase
-    :param split: delimiter
+    """ 讲文本转换成token序列
+    :param text: 文本列表
+    :param filters: 过滤规则, 默认过滤所有标点符号、制表符、换行符等
+    :param lower: 是否将文本转换为小写
+    :param split: 分隔符
     """
     if lower:
         text = text.lower()
@@ -322,15 +322,15 @@ def text_to_word_sequence(text, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', 
 
 def pad_sequences(sequences, max_len=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.) -> np.ndarray:
-    """ Fill the seq, if the maximum length is not specified,
-        the longest length in the seq will be used by default
-    :param sequences: The seq that needs to be filled
-    :param max_len: maximum length
-    :param dtype:
-    :param padding: filling type, pre is in front, post is in back
-    :param truncating: truncating type, pre is in front, post is in back
-    :param value: filling value, float or string
-    :return: shape (len(sequences), max_len)
+    """ 填充序列，如果未指定最大长度，则默认使用序列中最长长度
+
+    :param sequences: 需要填充的序列
+    :param max_len: 最大长度
+    :param dtype: 输出类型
+    :param padding: 填充类型，pre在前，post在后
+    :param truncating: 截断类型，pre在前，post在后
+    :param value: 填充值类型，float或者是string
+    :return: 形状为(len(sequences), max_len)的numpy数组
     """
     if not hasattr(sequences, '__len__'):
         raise ValueError('`sequences` must be iterable.')
@@ -387,9 +387,9 @@ def pad_sequences(sequences, max_len=None, dtype='int32',
 
 
 def tokenizer_from_json(json_string) -> Tokenizer:
-    """ Convert the configuration serialized json into a Tokenizer instance
-    :param json_string: json string
-    :return: Tokenizer
+    """ 将Tokenizer序列化的json转化为Tokenizer实例
+    :param json_string: json字符串
+    :return: 分词器
     """
     tokenizer_config = json.loads(json_string)
     config = tokenizer_config.get('configs')
@@ -417,8 +417,8 @@ def tokenizer_from_json(json_string) -> Tokenizer:
 
 
 def load_tokenizer(dict_path: str) -> Tokenizer:
-    """ Load Tokenizer through dict
-    :param dict_path: dict path
+    """ 通过字典加载tokenizer
+    :param dict_path: 字典路径
     :return tokenizer: 分词器
     """
     if not os.path.exists(dict_path):
@@ -433,12 +433,12 @@ def load_tokenizer(dict_path: str) -> Tokenizer:
 
 
 class Segment(object):
-    """ Word segmentation tool
+    """ 分词工具
     """
 
     def __init__(self, model: str = "jieba"):
-        """ use jieba by default
-        :param model: the model fo word segmentation tool, support jieba, lac, pkuseg
+        """ 需要初始化一个分词工具的base，默认使用结巴分词
+        :param model: 分词工具model，支付jieba, lac, pkuseg
         """
         self.model = model
         self.seg = None
@@ -454,10 +454,10 @@ class Segment(object):
             self.seg = pkuseg.pkuseg()
 
     def cut(self, sentence: str, split: str = " ") -> Any:
-        """ Word segmentation of text
-        :param sentence:
-        :param split:
-        :return:
+        """ 对文本进行分词
+        :param sentence: 分词文本
+        :param split: 分隔符，不传则返回token列表
+        :return: 分词后的token列表或文本
         """
         if self.model == "jieba":
             return split.join(self.seg.cut(sentence))
