@@ -85,3 +85,7 @@ usif.fit(tokens_list=sentences, vector_list=vector)
 ### Siamese LSTM
 + Related papers
    + [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
+```python
+from sim.siamese_rnn.actuator import actuator
+actuator()
+```

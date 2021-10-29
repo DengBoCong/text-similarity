@@ -13,7 +13,7 @@ import tensorflow as tf
 
 
 def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
-                               units: int, rnn: str, share: bool = True) -> tf.Model:
+                               units: int, rnn: str, share: bool = True) -> tf.keras.Model:
     """ Siamese LSTM with Embedding
     :param emb_dim: embedding dim
     :param vec_dim: 特征维度大小
@@ -26,8 +26,8 @@ def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
     input1 = tf.keras.Input(shape=(vec_dim,))
     input2 = tf.keras.Input(shape=(vec_dim,))
 
-    embedding1 = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, input_length=vec_dim)
-    embedding2 = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, input_length=vec_dim)
+    embedding1 = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, input_length=vec_dim)(input1)
+    embedding2 = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, input_length=vec_dim)(input2)
 
     if rnn not in ["lstm", "gru"]:
         raise ValueError("{} is unknown type".format(rnn))

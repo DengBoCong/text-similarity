@@ -9,10 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import os
-import random
-import tensorflow as tf
+import abc
 import time
 from sim.tools.datasets import datasets_generator
 from sim.tools.tools import get_dict_string
@@ -21,9 +18,8 @@ from typing import Any
 from typing import NoReturn
 
 
-class Pipeline(object):
-    def __init__(self, model: list, loss_metric: tf.keras.metrics.Mean,
-                 accuracy_metric: tf.keras.metrics.SparseCategoricalAccuracy, batch_size: int):
+class Pipeline(abc.ABC):
+    def __init__(self, model: list, loss_metric: Any, accuracy_metric: Any, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param loss_metric: 损失计算器，必传指标
@@ -35,15 +31,9 @@ class Pipeline(object):
         self.accuracy_metric = accuracy_metric
         self.batch_size = batch_size
 
-    def train(self, train_step: Any, valid_step: Any, save_model: Any, seed: int, train_file_path: str,
-              valid_file_path: str, epochs: int, optimizer: tf.optimizers.Adam,
-              checkpoint: tf.train.CheckpointManager, checkpoint_save_freq: int, history=None, **kwargs) -> dict:
+    def train(self, train_file_path: str, valid_file_path: str, epochs: int, optimizer: Any,
+              checkpoint: Any, checkpoint_save_freq: int, history=None, *args, **kwargs) -> dict:
         """ Train Module
-        :param train_step: 自定义训练步方法，[batch_dataset,optimizer]为必接收的参数，
-                           batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
-        :param valid_step: 自定义验证步方法，[dataset]为必接收的参数，batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
-        :param save_model: 训练完毕后，进行模型保存方法
-        :param seed: 随机种子
         :param train_file_path: 已转换为token id的训练数据文件路径
         :param valid_file_path: 已转换为token id的验证数据文件路径
         :param epochs: 训练周期
@@ -54,11 +44,6 @@ class Pipeline(object):
         """
         if history is None:
             history = {}
-
-        random.seed(seed)
-        os.environ['PYTHONHASHSEED'] = str(seed)
-        np.random.seed(seed)
-        tf.keras.utils.set_random_seed(seed)
 
         print("Begin train...")
 
@@ -75,7 +60,7 @@ class Pipeline(object):
                 if batch == 0:
                     progress_bar.reset(total=batch_dataset[3], num=self.batch_size)
 
-                train_metrics = train_step(batch_dataset=batch_dataset, optimizer=optimizer, **kwargs)
+                train_metrics = self._train_step(batch_dataset=batch_dataset, optimizer=optimizer, *args, **kwargs)
 
                 for key, value in train_metrics.items():
                     history[key].append(value)
@@ -87,16 +72,15 @@ class Pipeline(object):
                 checkpoint.save()
 
                 print("Begin valid...")
-                self._valid(valid_file_path, valid_step, progress_bar, history=history, **kwargs)
+                self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
 
         print("Train End.")
-        save_model(**kwargs)
+        self._save_model(*args, **kwargs)
         return history
 
-    def evaluate(self, valid_file_path: str, valid_step: Any, history=None, **kwargs) -> dict:
+    def evaluate(self, valid_file_path: str, history=None, *args, **kwargs) -> dict:
         """ 验证模块
         :param valid_file_path: 验证数据文本路径
-        :param valid_step: 自定义验证步方法，[dataset]为必接收的参数，batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
@@ -105,16 +89,14 @@ class Pipeline(object):
             history = {}
 
         progress_bar = ProgressBar()
-        self._valid(valid_file_path, valid_step, progress_bar, history=history, **kwargs)
+        self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
 
         print("Evaluate end.")
         return history
 
-    def _valid(self, valid_file_path: str, valid_step: Any,
-               progress_bar: ProgressBar, history=None, **kwargs) -> NoReturn:
+    def _valid(self, valid_file_path: str, progress_bar: ProgressBar, history=None, *args, **kwargs) -> NoReturn:
         """ 验证模块
         :param valid_file_path: 验证数据文本路径
-        :param valid_step: 自定义验证步方法，[dataset]为必接收的参数，batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
         :param progress_bar: 进度工具
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
@@ -130,19 +112,40 @@ class Pipeline(object):
             if valid_batch == 0:
                 progress_bar.reset(total=valid_batch_dataset[3], num=self.batch_size)
 
-            valid_metrics = valid_step(dataset=valid_batch_dataset, **kwargs)
+            valid_metrics = self._valid_step(dataset=valid_batch_dataset, *args, **kwargs)
 
             for key, value in valid_metrics.items():
                 history[key].append(value)
 
         progress_bar.done(step_time=time.time() - valid_start_time)
 
-    def inference(self, request: str, beam_size: int, start_sign: str = "<start>", end_sign: str = "<end>") -> Any:
-        """ 对话推断模块
-        :param request: 输入句子
-        :param beam_size: beam大小
-        :param start_sign: 句子开始标记
-        :param end_sign: 句子结束标记
-        :return: 返回历史指标数据
+    @abc.abstractmethod
+    def _train_step(self, batch_dataset: tuple, optimizer: Any, *args, **kwargs) -> dict:
+        """该方法用于定于训练步中，模型实际训练的核心代码（在train方法中使用）
+            batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
+        Note:
+            a): 返回所得指标字典
+            b): batch_dataset、optimizer为模型训练必需
         """
-        pass
+
+        raise NotImplementedError("Must be implemented in subclasses.")
+
+    @abc.abstractmethod
+    def _valid_step(self, dataset: tuple, *args, **kwargs) -> dict:
+        """ 该方法用于定义验证模型逻辑
+            batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
+        Note:
+            a): 返回所得指标字典
+            b): dataset为模型验证必需
+        """
+
+        raise NotImplementedError("Must be implemented in subclasses.")
+
+    @abc.abstractmethod
+    def _save_model(self, *args, **kwargs) -> NoReturn:
+        """ 将模型保存为SaveModel格式
+        Note:
+            如果不在train之后保存SaveModel，子类继承实现这个方法时，直接pass即可
+        """
+
+        raise NotImplementedError("Must be implemented in subclasses.")

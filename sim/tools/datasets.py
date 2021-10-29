@@ -16,9 +16,9 @@ from sim.tools.tokenizer import Segment
 from sim.tools.tokenizer import Tokenizer
 
 
-def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
-                          seg_model: str = "jieba", pad_max_len: int = None, padding: str = 'post',
-                          truncating: str = 'post', value: int = 0, print_count: int = 1000) -> Tokenizer:
+def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t", seg_model: str = "jieba",
+                          pad_max_len: int = None, padding: str = 'post', truncating: str = 'post',
+                          value: int = 0, print_count: int = 1000, tokenizer: Tokenizer = None) -> Tokenizer:
     """ 将Text pair转换为token id
     :param file_path: 未处理的文本数据路径，文本格式: <text1><split><text2><split><label>
     :param save_path: 保存处理后的数据路径
@@ -29,13 +29,13 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
     :param truncating: 截断类型，pre在前，post在后
     :param value: 填充值类型，float或者是string
     :param print_count: 处理print_count数量数据打印日志
+    :param tokenizer: 分词器
     :return: 分词器
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError("Raw text file not found")
 
     count, segment, text1s, text2s, labels = 0, None, list(), list(), list()
-    tokenizer = Tokenizer(oov_token="[UNK]")
 
     if seg_model:
         segment = Segment(model=seg_model)
@@ -57,7 +57,10 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
             if count % print_count == 0:
                 print("\r{} text-pairs processed".format(count), end="", flush=True)
 
-        tokenizer.fit_on_texts(texts=text1s + text2s)
+        if not tokenizer:
+            tokenizer = Tokenizer(oov_token="[UNK]")
+            tokenizer.fit_on_texts(texts=text1s + text2s)
+
         text1s = tokenizer.texts_to_sequences(texts=text1s)
         text2s = tokenizer.texts_to_sequences(texts=text2s)
 
@@ -67,9 +70,13 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t",
             text2s = pad_sequences(sequences=text2s, max_len=pad_max_len,
                                    padding=padding, truncating=truncating, value=value)
 
+        print("\nWrite in...")
         for index, (text1, text2, label) in enumerate(zip(text1s, text2s, labels)):
             save_file.write(
                 "{}{}{}{}{}\n".format(" ".join(map(str, text1)), split, " ".join(map(str, text2)), split, label))
+
+            if index % print_count == 0:
+                print("\r{} text-pairs processed".format(index), end="", flush=True)
 
     return tokenizer
 
