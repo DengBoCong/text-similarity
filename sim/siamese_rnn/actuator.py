@@ -10,12 +10,13 @@ from __future__ import division
 from __future__ import print_function
 
 from argparse import ArgumentParser
-from sim.siamese_rnn.tf_actuator import tf_actuator
+from importlib import import_module
 from typing import NoReturn
 
 
 def actuator() -> NoReturn:
     parser = ArgumentParser(description="执行器")
+    parser.add_argument("--type", default="tf", type=str, required=False, help="计算框架类型，tf/torch")
     parser.add_argument("--execute_type", default="preprocess", type=str, required=False, help="执行模式")
     parser.add_argument("--embedding_dim", default=512, type=int, required=False, help="词嵌入大小")
     parser.add_argument("--seed", default=1, type=int, required=False, help="随机种子")
@@ -35,7 +36,10 @@ def actuator() -> NoReturn:
     parser.add_argument("--valid_data_path", default="./data/test.txt", type=str, required=False, help="处理后的验证数据路径")
     parser.add_argument("--batch_size", default=64, type=int, required=False, help="batch大小")
     parser.add_argument("--epochs", default=5, type=int, required=False, help="训练步数")
+    parser.add_argument("--num_layers", default=2, type=int, required=False, help="层数")
+    parser.add_argument("--bi", default=True, type=bool, required=False, help="是否双层")
+    parser.add_argument("--dropout", default=0.2, type=float, required=False, help="采样率")
 
     options = parser.parse_args()
-
-    tf_actuator(options)
+    actuator_ = import_module('sim.siamese_rnn.{}_actuator'.format(options.type))
+    actuator_.actuator(options)

@@ -52,8 +52,10 @@ class Pipeline(abc.ABC):
             print("Epoch {}/{}".format(epoch + 1, epochs))
 
             start_time = time.time()
-            self.loss_metric.reset_states()
-            self.accuracy_metric.reset_states()
+            if self.loss_metric:
+                self.loss_metric.reset_states()
+            if self.accuracy_metric:
+                self.accuracy_metric.reset_states()
 
             for batch, batch_dataset in enumerate(datasets_generator(
                     file_path=train_file_path, batch_size=self.batch_size)):
@@ -104,8 +106,10 @@ class Pipeline(abc.ABC):
         print("Begin evaluate...")
 
         valid_start_time = time.time()
-        self.loss_metric.reset_states()
-        self.accuracy_metric.reset_states()
+        if self.loss_metric:
+            self.loss_metric.reset_states()
+        if self.accuracy_metric:
+            self.accuracy_metric.reset_states()
 
         for valid_batch, valid_batch_dataset in enumerate(datasets_generator(
                 file_path=valid_file_path, batch_size=self.batch_size)):

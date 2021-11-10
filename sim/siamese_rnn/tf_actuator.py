@@ -57,7 +57,7 @@ class TextPairPipeline(Pipeline):
 
         return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
 
-    def _valid_step(self, dataset: tf.data.Dataset, *args, **kwargs) -> dict:
+    def _valid_step(self, dataset: tuple, *args, **kwargs) -> dict:
         """ 验证步
         :param dataset: 训练步的当前batch数据
         """
@@ -86,7 +86,7 @@ class TextPairPipeline(Pipeline):
         pass
 
 
-def tf_actuator(options: Any) -> NoReturn:
+def actuator(options: Any) -> NoReturn:
     """
     :param options: args
     """
