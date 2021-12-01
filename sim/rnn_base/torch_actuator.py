@@ -14,7 +14,7 @@ import os
 import random
 import torch.optim
 
-from sim.siamese_rnn.torch_siamese_rnn import SiameseRnnWithEmbedding
+from sim.rnn_base.torch_siamese_rnn import SiameseRnnWithEmbedding
 from sim.tools.datasets import text_pair_to_token_id
 from sim.tools.torch_common import Checkpoint
 from sim.tools.pipeline import Pipeline

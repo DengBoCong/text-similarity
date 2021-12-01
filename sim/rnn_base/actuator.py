@@ -41,5 +41,5 @@ def actuator() -> NoReturn:
     parser.add_argument("--dropout", default=0.2, type=float, required=False, help="采样率")
 
     options = parser.parse_args()
-    actuator_ = import_module('sim.siamese_rnn.{}_actuator'.format(options.type))
+    actuator_ = import_module('sim.rnn_base.{}_actuator'.format(options.type))
     actuator_.actuator(options)

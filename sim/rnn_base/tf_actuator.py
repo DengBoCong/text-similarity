@@ -13,7 +13,7 @@ import numpy as np
 import os
 import random
 import tensorflow as tf
-from sim.siamese_rnn.tf_siamese_rnn import siamese_rnn_with_embedding
+from sim.rnn_base.tf_siamese_rnn import siamese_rnn_with_embedding
 from sim.tools.datasets import text_pair_to_token_id
 from sim.tools.tf_common import load_checkpoint
 from sim.tools.pipeline import Pipeline
