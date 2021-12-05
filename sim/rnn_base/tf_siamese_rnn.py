@@ -36,7 +36,7 @@ def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
         if rnn == "lstm":
             rnn_impl = tf.keras.layers.LSTM(units=units, return_sequences=True, return_state=True)
         else:
-            rnn_impl = tf.keras.layers.GRU()
+            rnn_impl = tf.keras.layers.GRU(units=units, return_sequences=True, return_state=True)
 
         outputs1 = rnn_impl(embedding1)
         outputs2 = rnn_impl(embedding2)
@@ -45,10 +45,42 @@ def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
             rnn_impl1 = tf.keras.layers.LSTM(units=units, return_sequences=True, return_state=True)
             rnn_impl2 = tf.keras.layers.LSTM(units=units, return_sequences=True, return_state=True)
         else:
-            rnn_impl1 = tf.keras.layers.GRU()
-            rnn_impl2 = tf.keras.layers.GRU()
+            rnn_impl1 = tf.keras.layers.GRU(units=units, return_sequences=True, return_state=True)
+            rnn_impl2 = tf.keras.layers.GRU(units=units, return_sequences=True, return_state=True)
 
         outputs1 = rnn_impl1(embedding1)
         outputs2 = rnn_impl2(embedding2)
 
     return tf.keras.Model(inputs=[input1, input2], outputs=[outputs1[1], outputs2[1]])
+
+
+def siamese_bi_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int, dropout: float,
+                                  num_layers: int, units: int, rnn: str) -> tf.keras.Model:
+    """ Siamese LSTM with Embedding
+    :param emb_dim: embedding dim
+    :param vec_dim: 特征维度大小
+    :param vocab_size: 词表大小，例如为token最大整数index + 1.
+    :param dropout: 采样率
+    :param num_layers: RNN层数
+    :param units: 输出空间的维度
+    :param rnn: RNN的实现类型
+    :return: Model
+    """
+    input1 = tf.keras.Input(shape=(vec_dim,))
+    input2 = tf.keras.Input(shape=(vec_dim,))
+
+    embedding = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=emb_dim, input_length=vec_dim)
+
+    embedding1 = embedding(input1)
+    embedding2 = embedding(input2)
+
+    if rnn not in ["lstm", "gru"]:
+        raise ValueError("{} is unknown type".format(rnn))
+
+    if rnn == "lstm":
+        rnns = [tf.keras.layers.LSTM(units=units, return_sequences=True, return_state=True) for _ in range(num_layers)]
+    else:
+        rnns = [tf.keras.layers.GRU(units=units, return_sequences=True, return_state=True) for _ in range(num_layers)]
+
+    # for index, rnn_impl in enumerate(rnns):
+        

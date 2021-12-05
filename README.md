@@ -18,7 +18,7 @@
    + BM25
    + LSH
    + SIF/uSIF
-   + Siamese RNN
+   + RNN Base
 
 # Usages
 
@@ -82,9 +82,10 @@ usif = uSIF(n_components=5, n=1, component_type="svd")
 usif.fit(tokens_list=sentences, vector_list=vector)
 ```
 
-### Siamese RNN
+### RNN Base
 + Related papers
    + [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
+   + [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
 
 ```python
 from sim.rnn_base.actuator import actuator
