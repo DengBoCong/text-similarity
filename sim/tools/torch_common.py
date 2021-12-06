@@ -89,7 +89,7 @@ class ContrastiveLoss(nn.Module):
     def __init__(self) -> NoReturn:
         super(ContrastiveLoss, self).__init__()
 
-    def forward(self, ew: Any, label: Any, m):
+    def forward(self, ew: Any, label: Any, m: float):
         """
         :param ew: Embedding向量之间的度量
         :param label: 样本句子的标签

@@ -128,6 +128,6 @@ class SiameseBiRnnWithEmbedding(nn.Module):
         output1 = self.dropout(torch.tanh(input=self.dense(avg1)))
         output2 = self.dropout(torch.tanh(input=self.dense(avg2)))
 
-        output = torch.cosine_similarity(x1=output1, x2=output2, dim=1, eps=self.eps)
+        output = torch.cosine_similarity(x1=output1, x2=output2, dim=-1, eps=self.eps)
 
         return output

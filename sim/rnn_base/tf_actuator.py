@@ -100,7 +100,7 @@ def actuator(options: Any) -> NoReturn:
     else:
         model = siamese_rnn_with_embedding(emb_dim=options.embedding_dim, vec_dim=options.vec_dim,
                                            vocab_size=options.vocab_size, units=options.units,
-                                           rnn=options.rnn, share=options.share)
+                                           cell_type=options.rnn, share=options.share)
         checkpoint_manager = load_checkpoint(checkpoint_dir=options.checkpoint_dir, execute_type=options.execute_type,
                                              checkpoint_save_size=options.checkpoint_save_size, model=model)
 

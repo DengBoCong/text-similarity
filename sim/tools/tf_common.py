@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+from typing import Any
 
 
 def load_checkpoint(checkpoint_dir: str, execute_type: str, checkpoint_save_size: int, model: tf.keras.Model = None,
@@ -39,3 +40,20 @@ def load_checkpoint(checkpoint_dir: str, execute_type: str, checkpoint_save_size
             raise FileNotFoundError("Not found checkpoint file")
 
     return checkpoint_manager
+
+
+# 定义相关的损失函数
+def contrastive_loss(ew: Any, label: Any, m: float):
+    """
+    :param ew: Embedding向量之间的度量
+    :param label: 样本句子的标签
+    :param m: 负样本控制阈值
+    :return:
+    """
+    l_1 = 0.25 * (1.0 - ew) * (1.0 - ew)
+    l_0 = tf.where(condition=ew < m * tf.ones_like(input=ew), x=tf.fill(dims=ew.shape, value=0), y=ew) * tf.where(
+        condition=ew < m * tf.ones_like(input=ew), x=tf.fill(dims=ew.shape, value=0), y=ew)
+
+    loss = label * 1.0 * l_1 + (1 - label) * 1.0 * l_0
+
+    return loss.sum()
