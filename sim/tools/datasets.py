@@ -11,9 +11,14 @@ from __future__ import print_function
 
 import numpy as np
 import os
+from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tokenizer import pad_sequences
 from sim.tools.tokenizer import Segment
 from sim.tools.tokenizer import Tokenizer
+from sim.tools.tools import get_logger
+
+
+logger = get_logger(name="datasets", file_path=RNN_BASE_LOG_FILE_PATH)
 
 
 def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t", seg_model: str = "jieba",
@@ -57,6 +62,8 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t", seg
             if count % print_count == 0:
                 print("\r{} text-pairs processed".format(count), end="", flush=True)
 
+        logger.info("{} text-pairs processed".format(count))
+
         if not tokenizer:
             tokenizer = Tokenizer(oov_token="[UNK]")
             tokenizer.fit_on_texts(texts=text1s + text2s)
@@ -70,13 +77,15 @@ def text_pair_to_token_id(file_path: str, save_path: str, split: str = "\t", seg
             text2s = pad_sequences(sequences=text2s, max_len=pad_max_len,
                                    padding=padding, truncating=truncating, value=value)
 
-        print("\nWrite in...")
+        logger.info("Begin write in")
         for index, (text1, text2, label) in enumerate(zip(text1s, text2s, labels)):
             save_file.write(
                 "{}{}{}{}{}\n".format(" ".join(map(str, text1)), split, " ".join(map(str, text2)), split, label))
 
             if index % print_count == 0:
                 print("\r{} text-pairs processed".format(index), end="", flush=True)
+
+        logger.info("Finish write in")
 
     return tokenizer
 

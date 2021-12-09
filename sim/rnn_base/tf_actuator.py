@@ -15,10 +15,15 @@ import random
 import tensorflow as tf
 from sim.rnn_base.tf_siamese_rnn import siamese_rnn_with_embedding
 from sim.tools.datasets import text_pair_to_token_id
+from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tf_common import load_checkpoint
+from sim.tools.tools import get_logger
 from sim.tools.pipeline import Pipeline
 from typing import Any
 from typing import NoReturn
+
+
+logger = get_logger(name="actuator", file_path=RNN_BASE_LOG_FILE_PATH)
 
 
 class TextPairPipeline(Pipeline):
@@ -91,10 +96,10 @@ def actuator(options: Any) -> NoReturn:
     :param options: args
     """
     if options.execute_type == "preprocess":
-        print("Preprocess train data...")
+        logger.info("Begin preprocess train data")
         tokenizer = text_pair_to_token_id(file_path=options.raw_train_data_path,
                                           save_path=options.train_data_path, pad_max_len=options.vec_dim)
-        print("\nPreprocess valid data...")
+        logger.info("Begin preprocess valid data")
         text_pair_to_token_id(file_path=options.raw_valid_data_path,
                               save_path=options.valid_data_path, pad_max_len=options.vec_dim, tokenizer=tokenizer)
     else:

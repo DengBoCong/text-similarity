@@ -6,8 +6,18 @@
 #
 # License: MIT License
 
+import json
 import re
+import os
 import sys
+import logging
+from datetime import datetime
+from logging import Logger
+from typing import Any
+
+# 设定logging基础配置
+LOGGING_FORMATTER = "%(asctime)s %(module)s [line:%(lineno)d] %(levelname)s: %(message)s"
+logging.basicConfig(format=LOGGING_FORMATTER, datefmt="%Y-%m-%d %H:%M:%S")
 
 
 class ProgressBar(object):
@@ -78,7 +88,8 @@ class ProgressBar(object):
         """
         self.args["bar"] = "[" + self.symbol * self.width + "]"
         self.args["time"] = step_time
-        print("\r" + fmt % self.args + "\n", file=self.output, end="")
+        # print("\r" + fmt % self.args + "\n", file=self.output, end="")
+        return fmt % self.args
 
 
 def get_dict_string(data: dict, prefix: str = "- ", precision: str = ": {:.4f} "):
@@ -93,3 +104,79 @@ def get_dict_string(data: dict, prefix: str = "- ", precision: str = ": {:.4f} "
         result += (prefix + key + precision).format(value)
 
     return result
+
+
+def get_logger(name: str, file_path: str, level: int = logging.INFO, mode: str = "a+",
+               encoding: str = "utf-8", formatter: str = LOGGING_FORMATTER) -> Logger:
+    """ 获取日志器
+    :param name: 日志命名
+    :param file_path: 日志文件存放路径
+    :param level: 最低的日志级别
+    :param mode: 读写日志文件模式
+    :param encoding: 日志文件编码
+    :param formatter: 日志格式
+    :return: 日志器
+    """
+    if file_path and not file_path.endswith(".log"):
+        raise ValueError("{} not a valid file path".format(file_path))
+
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.mkdir(os.path.dirname(file_path))
+
+    logger = logging.getLogger(name)
+    logger.propagate = False
+    logger.setLevel(level)
+
+    if not logger.handlers:
+        file_logger = logging.FileHandler(filename=file_path, mode=mode, encoding=encoding)
+        file_logger.setLevel(logging.INFO)
+        formatter = logging.Formatter(formatter)
+        file_logger.setFormatter(formatter)
+        logger.addHandler(file_logger)
+
+    return logger
+
+
+def save_model_config(key: str, model_desc: str, options: Any, config_path: str) -> bool:
+    """ 保存单次训练执行时，模型的对应配置
+    :param key: 配置key
+    :param model_desc: 模型说明
+    :param options: args
+    :param config_path: 配置文件保存路径
+    :return: 执行成功与否
+    """
+    if options.execute_type != "train":
+        return True
+
+    try:
+        config_json = {}
+        if os.path.exists(config_path) and os.path.getsize(config_path) != 0:
+            with open(config_path, "r", encoding="utf-8") as file:
+                config_json = json.load(file)
+
+        with open(config_path, "w+", encoding="utf-8") as config_file:
+            model_config = options.__dict__
+            model_config["execute_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            model_config["model_desc"] = model_desc
+            config_json[key] = model_config
+            json.dump(config_json, config_file, ensure_ascii=False, indent=4)
+
+            return True
+    except Exception:
+        return False
+
+
+def get_model_config(key: str, config_path: str) -> dict:
+    """ 保存单次训练执行时，模型的对应配置
+    :param key: 配置key
+    :param config_path: 配置文件路径
+    :return: 模型配置字典
+    """
+    if not os.path.exists(config_path):
+        raise FileNotFoundError("get_model_config: Not such file {}".format(config_path))
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as file:
+            return json.load(file).get(key, {})
+    except Exception:
+        return {}

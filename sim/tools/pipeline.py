@@ -12,10 +12,15 @@ from __future__ import print_function
 import abc
 import time
 from sim.tools.datasets import datasets_generator
+from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tools import get_dict_string
+from sim.tools.tools import get_logger
 from sim.tools.tools import ProgressBar
 from typing import Any
 from typing import NoReturn
+
+
+logger = get_logger(name="pipeline", file_path=RNN_BASE_LOG_FILE_PATH)
 
 
 class Pipeline(abc.ABC):
@@ -45,11 +50,11 @@ class Pipeline(abc.ABC):
         if history is None:
             history = {}
 
-        print("Begin train...")
+        logger.info("Begin train")
 
         progress_bar = ProgressBar()
         for epoch in range(epochs):
-            print("Epoch {}/{}".format(epoch + 1, epochs))
+            logger.info("Epoch {}/{}".format(epoch + 1, epochs))
 
             start_time = time.time()
             if self.loss_metric:
@@ -68,15 +73,15 @@ class Pipeline(abc.ABC):
                     history[key].append(value)
                 progress_bar(current=batch + 1, metrics=get_dict_string(data=train_metrics))
 
-            progress_bar.done(step_time=time.time() - start_time)
+            logger.info(progress_bar.done(step_time=time.time() - start_time))
 
             if (epoch + 1) % checkpoint_save_freq == 0:
                 checkpoint.save()
 
-                print("Begin valid...")
+                logger.info("Begin valid")
                 self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
 
-        print("Train End.")
+        logger.info("Train end")
         self._save_model(*args, **kwargs)
         return history
 
@@ -86,14 +91,14 @@ class Pipeline(abc.ABC):
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
-        print("Begin evaluate...")
+        logger.info("Begin evaluate")
         if history is None:
             history = {}
 
         progress_bar = ProgressBar()
         self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
 
-        print("Evaluate end.")
+        logger.info("Evaluate end")
         return history
 
     def _valid(self, valid_file_path: str, progress_bar: ProgressBar, history=None, *args, **kwargs) -> NoReturn:
@@ -103,7 +108,7 @@ class Pipeline(abc.ABC):
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
-        print("Begin evaluate...")
+        logger.info("Begin evaluate")
 
         valid_start_time = time.time()
         if self.loss_metric:

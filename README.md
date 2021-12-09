@@ -19,6 +19,7 @@
    + LSH
    + SIF/uSIF
    + RNN Base
+   + Bert Base
 
 # Usages
 
@@ -88,9 +89,15 @@ usif.fit(tokens_list=sentences, vector_list=vector)
    + [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
 
 ```python
-from sim.rnn_base.actuator import actuator
+from sim.rnn_base import actuator
 
 actuator()
 # TensorFlow version：python3 debug.py --execute_type train --type tf
 # or pytorch version：python3 debug.py --execute_type train --type torch
+```
+
+### Bert Base
++ Related papers
+
+```python
 ```

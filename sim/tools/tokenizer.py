@@ -422,8 +422,7 @@ def load_tokenizer(dict_path: str) -> Tokenizer:
     :return tokenizer: 分词器
     """
     if not os.path.exists(dict_path):
-        print("dict not found, please try again")
-        exit(0)
+        raise FileNotFoundError("dict not found, please try again")
 
     with open(dict_path, "r", encoding="utf-8") as dict_file:
         json_string = dict_file.read().strip().strip("\n")

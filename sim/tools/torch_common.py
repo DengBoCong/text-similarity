@@ -63,8 +63,7 @@ class Checkpoint(object):
         checkpoint_path = self.checkpoint_dir + "checkpoint"
 
         if not os.path.exists(checkpoint_path) and execute_type != "train" and execute_type != "pre_treat":
-            print("没有检查点，请先执行train模式")
-            exit(0)
+            raise FileNotFoundError("checkpoint_path not found, please execute train first")
         elif not os.path.exists(checkpoint_path):
             return self.model, self.optimizer
 

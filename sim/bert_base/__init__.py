@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" Entrance
+""" Bert Base Entrance
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
