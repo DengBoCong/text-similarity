@@ -23,8 +23,14 @@ class Tokenizer(object):
     """ 文本分词工具及Tokenizer
     """
 
-    def __init__(self, num_words=None, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', lower=True,
-                 split=" ", char_level=False, oov_token=None, document_count=0) -> None:
+    def __init__(self,
+                 num_words=None,
+                 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                 lower=True,
+                 split=" ",
+                 char_level=False,
+                 oov_token=None,
+                 document_count=0) -> None:
         """
         :param num_words: 保存的最大token数，基于出现频率
         :param filters: 过滤规则, 默认过滤所有标点符号、制表符、换行符等
@@ -195,8 +201,16 @@ class Tokenizer(object):
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores if top_k == 0 else scores[:top_k]
 
-    def get_bm25_score(self, query: list, index: int, q_tf_dict: dict = None, q_total: int = 0,
-                       if_tq: bool = True, e: int = 0.5, b=0.75, k1=2, k2=1.2) -> float:
+    def get_bm25_score(self,
+                       query: list,
+                       index: int,
+                       q_tf_dict: dict = None,
+                       q_total: int = 0,
+                       if_tq: bool = True,
+                       e: int = 0.5,
+                       b=0.75,
+                       k1=2,
+                       k2=1.2) -> float:
         """ 计算文本序列与文本列表指定的文本序列的BM25相似度分数
         :param query: 文本序列
         :param index: 指定文本列表中的文本序列索引
@@ -234,8 +248,14 @@ class Tokenizer(object):
 
         return score
 
-    def bm25_idf_retrieval(self, query: list, top_k: int = 0, if_tq: bool = True,
-                           e: int = 0.5, b=0.75, k1=2, k2=1.2) -> list:
+    def bm25_idf_retrieval(self,
+                           query: list,
+                           top_k: int = 0,
+                           if_tq: bool = True,
+                           e: int = 0.5,
+                           b=0.75,
+                           k1=2,
+                           k2=1.2) -> list:
         """ 检索文本列表中BM25分数最高的前top-k个文本序列，当
             top-k为0时，返回文本列表中所有文本序列与指定文本序列的BM25分数
         :param query: 文本序列
@@ -320,8 +340,12 @@ def text_to_word_sequence(text, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n', 
     return [i for i in seq if i]
 
 
-def pad_sequences(sequences, max_len=None, dtype='int32',
-                  padding='pre', truncating='pre', value=0.) -> np.ndarray:
+def pad_sequences(sequences,
+                  max_len=None,
+                  dtype='int32',
+                  padding='pre',
+                  truncating='pre',
+                  value=0.) -> np.ndarray:
     """ 填充序列，如果未指定最大长度，则默认使用序列中最长长度
 
     :param sequences: 需要填充的序列

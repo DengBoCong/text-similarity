@@ -49,7 +49,7 @@ def actuator() -> NoReturn:
     parser.add_argument("--dropout", default=0.2, type=float, required=False, help="采样率")
 
     options = parser.parse_args()
-    actuator_ = import_module('sim.rnn_base.{}_actuator'.format(options.type))
+    actuator_ = import_module('sim.rnn_base.{}.actuator'.format(options.type))
 
     # 这里在日志文件里面做一个执行分割
     key = int(datetime.now().timestamp())

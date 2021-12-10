@@ -14,8 +14,8 @@ import os
 import random
 import torch.optim
 
-from sim.rnn_base.torch_siamese_rnn import SiameseRnnWithEmbedding
-from sim.tools.datasets import text_pair_to_token_id
+from sim.rnn_base.torch.siamese_rnn import SiameseRnnWithEmbedding
+from sim.tools.data_processor import text_pair_to_token_id
 from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from sim.tools.torch_common import Checkpoint

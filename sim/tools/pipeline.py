@@ -11,7 +11,7 @@ from __future__ import print_function
 
 import abc
 import time
-from sim.tools.datasets import datasets_generator
+from sim.tools.data_processor import datasets_generator
 from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tools import get_dict_string
 from sim.tools.tools import get_logger
@@ -36,8 +36,14 @@ class Pipeline(abc.ABC):
         self.accuracy_metric = accuracy_metric
         self.batch_size = batch_size
 
-    def train(self, train_file_path: str, valid_file_path: str, epochs: int, optimizer: Any,
-              checkpoint: Any, checkpoint_save_freq: int, history=None, *args, **kwargs) -> dict:
+    def train(self,
+              train_file_path: str,
+              valid_file_path: str,
+              epochs: int,
+              optimizer: Any,
+              checkpoint: Any,
+              checkpoint_save_freq: int,
+              history=None, *args, **kwargs) -> dict:
         """ Train Module
         :param train_file_path: 已转换为token id的训练数据文件路径
         :param valid_file_path: 已转换为token id的验证数据文件路径

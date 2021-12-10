@@ -13,8 +13,8 @@ import numpy as np
 import os
 import random
 import tensorflow as tf
-from sim.rnn_base.tf_siamese_rnn import siamese_rnn_with_embedding
-from sim.tools.datasets import text_pair_to_token_id
+from sim.rnn_base.tf.siamese_rnn import siamese_rnn_with_embedding
+from sim.tools.data_processor import text_pair_to_token_id
 from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
 from sim.tools.tf_common import load_checkpoint
 from sim.tools.tools import get_logger
@@ -27,8 +27,11 @@ logger = get_logger(name="actuator", file_path=RNN_BASE_LOG_FILE_PATH)
 
 
 class TextPairPipeline(Pipeline):
-    def __init__(self, model: list, loss_metric: tf.keras.metrics.Metric,
-                 accuracy_metric: tf.keras.metrics.Metric, batch_size: int):
+    def __init__(self,
+                 model: list,
+                 loss_metric: tf.keras.metrics.Metric,
+                 accuracy_metric: tf.keras.metrics.Metric,
+                 batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param loss_metric: 损失计算器，必传指标

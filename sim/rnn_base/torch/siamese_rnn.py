@@ -18,8 +18,15 @@ from typing import NoReturn
 class SiameseRnnWithEmbedding(nn.Module):
     """ Siamese LSTM with Embedding """
 
-    def __init__(self, emb_dim: int, vocab_size: int, units: int, dropout: float,
-                 num_layers: int, rnn: str, share: bool = True, if_bi: bool = True) -> NoReturn:
+    def __init__(self,
+                 emb_dim: int,
+                 vocab_size: int,
+                 units: int,
+                 dropout: float,
+                 num_layers: int,
+                 rnn: str,
+                 share: bool = True,
+                 if_bi: bool = True) -> NoReturn:
         """
         :param emb_dim: embedding dim
         :param vocab_size: 词表大小，例如为token最大整数index + 1.
@@ -85,8 +92,15 @@ class SiameseRnnWithEmbedding(nn.Module):
 class SiameseBiRnnWithEmbedding(nn.Module):
     """ Learning Text Similarity with Siamese Recurrent Networks"""
 
-    def __init__(self, vocab_size: int, emb_dim: int, hidden_size: int, units: int,
-                 dropout: float, num_layers: int, rnn: str, cos_eps: float) -> NoReturn:
+    def __init__(self,
+                 vocab_size: int,
+                 emb_dim: int,
+                 hidden_size: int,
+                 units: int,
+                 dropout: float,
+                 num_layers: int,
+                 rnn: str,
+                 cos_eps: float) -> NoReturn:
         """
         :param vocab_size: 词表大小，例如为token最大整数index + 1.
         :param emb_dim: embedding dim

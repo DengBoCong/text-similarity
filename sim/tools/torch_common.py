@@ -9,8 +9,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
 import json
+import numpy as np
+import os
+import random
 import time
 import torch
 import torch.nn as nn
@@ -79,6 +81,18 @@ class Checkpoint(object):
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         return self.model, self.optimizer
+
+
+def set_seed(manual_seed):
+    """ 固定随机种子
+    :manual_seed: 手动指定种子
+    :return: None
+    """
+    random.seed(manual_seed)
+    np.random.seed(manual_seed)
+    torch.manual_seed(manual_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(manual_seed)
 
 
 # 定义相关的损失函数

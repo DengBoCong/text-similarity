@@ -26,8 +26,14 @@ class ProgressBar(object):
     EXECUTE = "%(current)d/%(total)d %(bar)s (%(percent)3d%%) %(metrics)s"
     DONE = "%(current)d/%(total)d %(bar)s - %(time).4fs/step %(metrics)s"
 
-    def __init__(self, total: int = 100, num: int = 1, width: int = 30, fmt: str = EXECUTE,
-                 symbol: str = "=", remain: str = ".", output=sys.stderr):
+    def __init__(self,
+                 total: int = 100,
+                 num: int = 1,
+                 width: int = 30,
+                 fmt: str = EXECUTE,
+                 symbol: str = "=",
+                 remain: str = ".",
+                 output=sys.stderr):
         """
         :param total: 执行总的次数
         :param num: 每执行一次任务数量级
@@ -67,8 +73,14 @@ class ProgressBar(object):
         }
         print("\r" + self.fmt % self.args, file=self.output, end="")
 
-    def reset(self, total: int, num: int, width: int = 30, fmt: str = EXECUTE,
-              symbol: str = "=", remain: str = ".", output=sys.stderr):
+    def reset(self,
+              total: int,
+              num: int,
+              width: int = 30,
+              fmt: str = EXECUTE,
+              symbol: str = "=",
+              remain: str = ".",
+              output=sys.stderr):
         """重置内部属性
         :param total: 执行总的次数
         :param num: 每执行一次任务数量级
@@ -106,8 +118,12 @@ def get_dict_string(data: dict, prefix: str = "- ", precision: str = ": {:.4f} "
     return result
 
 
-def get_logger(name: str, file_path: str, level: int = logging.INFO, mode: str = "a+",
-               encoding: str = "utf-8", formatter: str = LOGGING_FORMATTER) -> Logger:
+def get_logger(name: str,
+               file_path: str,
+               level: int = logging.INFO,
+               mode: str = "a+",
+               encoding: str = "utf-8",
+               formatter: str = LOGGING_FORMATTER) -> Logger:
     """ 获取日志器
     :param name: 日志命名
     :param file_path: 日志文件存放路径

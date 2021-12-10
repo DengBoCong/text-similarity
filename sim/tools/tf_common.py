@@ -13,8 +13,12 @@ import tensorflow as tf
 from typing import Any
 
 
-def load_checkpoint(checkpoint_dir: str, execute_type: str, checkpoint_save_size: int, model: tf.keras.Model = None,
-                    encoder: tf.keras.Model = None, decoder: tf.keras.Model = None) -> tf.train.CheckpointManager:
+def load_checkpoint(checkpoint_dir: str,
+                    execute_type: str,
+                    checkpoint_save_size: int,
+                    model: tf.keras.Model = None,
+                    encoder: tf.keras.Model = None,
+                    decoder: tf.keras.Model = None) -> tf.train.CheckpointManager:
     """加载检查点，同时支持Encoder-Decoder结构加载，两种类型的模型二者只能传其一
     :param checkpoint_dir: 检查点保存目录
     :param execute_type: 执行类型

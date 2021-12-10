@@ -12,8 +12,12 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def rnn_layer(units: int, input_feature_dim: int, cell_type: str = "lstm", dropout: float = 0.0,
-              if_bidirectional: bool = True, d_type: tf.dtypes.DType = tf.float32) -> tf.keras.Model:
+def rnn_layer(units: int,
+              input_feature_dim: int,
+              cell_type: str = "lstm",
+              dropout: float = 0.0,
+              if_bidirectional: bool = True,
+              d_type: tf.dtypes.DType = tf.float32) -> tf.keras.Model:
     """ RNNCell层，其中可定义cell类型，是否双向
     :param units: cell单元数
     :param input_feature_dim: 输入的特征维大小
@@ -43,8 +47,12 @@ def rnn_layer(units: int, input_feature_dim: int, cell_type: str = "lstm", dropo
     return tf.keras.Model(inputs=inputs, outputs=[outputs, states])
 
 
-def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
-                               units: int, cell_type: str, share: bool = True,
+def siamese_rnn_with_embedding(emb_dim: int,
+                               vec_dim: int,
+                               vocab_size: int,
+                               units: int,
+                               cell_type: str,
+                               share: bool = True,
                                d_type: tf.dtypes.DType = tf.float32) -> tf.keras.Model:
     """ Siamese LSTM with Embedding
     :param emb_dim: embedding dim
@@ -89,8 +97,14 @@ def siamese_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int,
     return tf.keras.Model(inputs=[input1, input2], outputs=[outputs1[1], outputs2[1]])
 
 
-def siamese_bi_rnn_with_embedding(emb_dim: int, vec_dim: int, vocab_size: int, dropout: float,
-                                  num_layers: int, units: int, hidden_size: int, cell_type: str,
+def siamese_bi_rnn_with_embedding(emb_dim: int,
+                                  vec_dim: int,
+                                  vocab_size: int,
+                                  dropout: float,
+                                  num_layers: int,
+                                  units: int,
+                                  hidden_size: int,
+                                  cell_type: str,
                                   d_type: tf.dtypes.DType = tf.float32) -> tf.keras.Model:
     """ Siamese LSTM with Embedding
     :param emb_dim: embedding dim

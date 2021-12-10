@@ -9,37 +9,82 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
+import json
 from argparse import ArgumentParser
 from importlib import import_module
 from typing import NoReturn
 
 
-def actuator() -> NoReturn:
-    parser = ArgumentParser(description="执行器")
-    parser.add_argument("--type", default="tf", type=str, required=False, help="计算框架类型，tf/torch")
-    parser.add_argument("--execute_type", default="preprocess", type=str, required=False, help="执行模式")
-    parser.add_argument("--embedding_dim", default=512, type=int, required=False, help="词嵌入大小")
-    parser.add_argument("--seed", default=1, type=int, required=False, help="随机种子")
-    parser.add_argument("--vec_dim", default=12, type=int, required=False, help="最大句子序列长度")
-    parser.add_argument("--vocab_size", default=40000, type=int, required=False, help="词汇量大小")
-    parser.add_argument("--units", default=1024, type=int, required=False, help="RNN输出单元大小")
-    parser.add_argument("--rnn", default="lstm", type=str, required=False, help="RNN实现类型")
-    parser.add_argument("--share", default=False, type=bool, required=False, help="是否共享参数")
-    parser.add_argument("--checkpoint_dir", default="./data/checkpoint/", type=str, required=False, help="检查点保存相对路径")
-    parser.add_argument("--checkpoint_save_size", default=5, type=int, required=False, help="最大保存检查点数量")
-    parser.add_argument("--checkpoint_save_freq", default=2, type=int, required=False, help="检查点保存频率")
-    parser.add_argument("--raw_train_data_path", default="./corpus/chinese/LCQMC/train.txt",
-                        type=str, required=False, help="原始训练数据路径")
-    parser.add_argument("--raw_valid_data_path", default="./corpus/chinese/LCQMC/test.txt",
-                        type=str, required=False, help="原始验证数据路径")
-    parser.add_argument("--train_data_path", default="./data/train.txt", type=str, required=False, help="处理后的训练数据路径")
-    parser.add_argument("--valid_data_path", default="./data/test.txt", type=str, required=False, help="处理后的验证数据路径")
-    parser.add_argument("--batch_size", default=64, type=int, required=False, help="batch大小")
-    parser.add_argument("--epochs", default=5, type=int, required=False, help="训练步数")
-    parser.add_argument("--num_layers", default=2, type=int, required=False, help="层数")
-    parser.add_argument("--bi", default=True, type=bool, required=False, help="是否双层")
-    parser.add_argument("--dropout", default=0.2, type=float, required=False, help="采样率")
+class BertConfig(object):
+    """BertModel的配置"""
 
-    options = parser.parse_args()
-    actuator_ = import_module('sim.rnn_base.{}_actuator'.format(options.type))
-    actuator_.actuator(options)
+    def __init__(self,
+                 vocab_size: int,
+                 hidden_size: int = 768,
+                 num_hidden_layers: int = 12,
+                 num_attention_heads: int = 12,
+                 intermediate_size: int = 3072,
+                 hidden_act: str = "gelu",
+                 hidden_dropout_prob: float = 0.1,
+                 attention_prob_dropout_prob: float = 0.1,
+                 max_position_embeddings: int = 512,
+                 type_vocab_size: int = 2,
+                 initializer_range: float = 0.02) -> NoReturn:
+        """构建BertConfig
+        :param vocab_size: 词表大小
+        :param hidden_size: encoder和pool维度大小
+        :param num_hidden_layers: encoder的层数
+        :param num_attention_heads: encoder中的attention层的注意力头数量
+        :param intermediate_size: 前馈神经网络层维度大小
+        :param hidden_act: encoder和pool中的非线性激活函数
+        :param hidden_dropout_prob: embedding、encoder和pool层中的全连接层dropout
+        :param attention_prob_dropout_prob: attention的dropout
+        :param max_position_embeddings: embedding维数
+        :param type_vocab_size: token_type_ids的词典大小
+        :param initializer_range: truncated_normal_initializer初始化方法的stdev
+        """
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.num_hidden_layers = num_hidden_layers
+        self.num_attention_heads = num_attention_heads
+        self.hidden_act = hidden_act
+        self.intermediate_size = intermediate_size
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.attention_prob_dropout_prob = attention_prob_dropout_prob
+        self.max_position_embeddings = max_position_embeddings
+        self.type_vocab_size = type_vocab_size
+        self.initializer_range = initializer_range
+
+    @classmethod
+    def from_dict(cls, json_obj) -> BertConfig:
+        """从字典对象中构建BertConfig
+        :param json_obj: 字典对象
+        :return: BertConfig
+        """
+        bert_config = BertConfig(vocab_size=0)
+        for (key, value) in json_obj.items():
+            bert_config.__dict__[key] = value
+
+        return bert_config
+
+    @classmethod
+    def from_json_file(cls, json_file_path: str) -> BertConfig:
+        """从json文件中构建BertConfig
+        :param json_file_path: JSON文件路径
+        :return: BertConfig
+        """
+        with open(json_file_path, "r", encoding="utf-8") as reader:
+            return cls.from_dict(json_obj=json.load(reader))
+
+    def to_dict(self):
+        """将实例序列化为字典"""
+        return copy.deepcopy(self.__dict__)
+
+    def to_json_string(self):
+        """将实例序列化为json字符串"""
+        return json.dumps(self.to_dict(), indent=2, sort_keys=True)
+
+
+def actuator() -> NoReturn:
+    pass
