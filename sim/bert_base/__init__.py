@@ -35,12 +35,9 @@ class BertConfig(object):
                  initializer_range: float = 0.02,
                  layer_norm_eps: float = 1e-12,
                  pad_token_id: int = 0,
-                 gradient_checkpointing=False,
-                 position_embedding_type="absolute",
                  use_relative_position: bool = False,
-                 segment_type="absolute",
-                 use_mean_pooling=False,
-                 use_cache=True) -> NoReturn:
+                 segment_type: str = "absolute",
+                 use_mean_pooling: bool = False) -> NoReturn:
         """构建BertConfig
         :param vocab_size: 词表大小
         :param hidden_size: encoder和pool维度大小
@@ -57,6 +54,8 @@ class BertConfig(object):
         :param layer_norm_eps: layer norm 附加因子，避免除零
         :param pad_token_id: 用于padding的token id
         :param use_relative_position: 是否使用相对位置编码
+        :param segment_type: 相对位置还是绝对位置
+        :param use_mean_pooling: 是否增加pool输出层
         """
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
@@ -73,6 +72,8 @@ class BertConfig(object):
         self.layer_norm_eps = layer_norm_eps
         self.pad_token_id = pad_token_id
         self.use_relative_position = use_relative_position
+        self.segment_type = segment_type
+        self.use_mean_pooling = use_mean_pooling
 
     @classmethod
     def from_dict(cls, json_obj) -> BertConfig:
