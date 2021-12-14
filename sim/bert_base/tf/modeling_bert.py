@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
 import numpy as np
 import tensorflow as tf
 from sim.bert_base import BertConfig
@@ -195,7 +196,6 @@ def scaled_dot_product_attention(query: tf.Tensor,
     :param dropout: 注意力dropout
     :param is_training: 是否处于训练模式
     :param mask: float, (..., seq_len_q, seq_len_k)
-    :param head_mask: mask head
     :param manual_seed: 随机种子
     """
     batch_size = tf.shape(query)[0]
@@ -333,13 +333,12 @@ def bert_model(config: BertConfig,
     """Bert Model
     :param config: BertConfig实例
     :param is_training: train/eval
-    :param use_one_hot_embeddings: 是否使用one-hot embedding
     :param add_pooling_layer: 添加池化层
     :param manual_seed: 随机种子
     """
     input_ids = tf.keras.Input(shape=(None,))
     token_type_ids = tf.keras.Input(shape=(None,))
-    input_mask = tf.cast(x=tf.math.equal(self.input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
+    input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
 
     config = copy.deepcopy(config)
     if not is_training:
@@ -350,12 +349,13 @@ def bert_model(config: BertConfig,
                                       manual_seed=manual_seed)(input_ids, token_type_ids)
     encoder_output = bert_encoder(config=config, is_training=is_training,
                                   manual_seed=manual_seed)(embedding_output, input_mask)
-    if add_pooling_layer and not self.config.use_mean_pooling:
+    if add_pooling_layer and not config.use_mean_pooling:
         pooler_output = bert_pooler(config=config)(encoder_output)
-    elif self.config.use_mean_pooling:
+    elif config.use_mean_pooling:
         mask = tf.cast(x=tf.math.not_equal(x=input_ids, y=0), dtype=tf.float32)
         sum_mask = tf.reduce_sum(input_tensor=mask, axis=-1, keepdims=True)
-        mul_msk = tf.reduce_sum(input_tensor=tf.multiply(x=tf.expand_dims(input=mask, axis=-1), y=output), axis=1)
+        mul_msk = tf.reduce_sum(input_tensor=tf.multiply(x=tf.expand_dims(input=mask, axis=-1),
+                                                         y=encoder_output), axis=1)
         pooler_output = tf.divide(x=mul_msk, y=sum_mask)
     else:
         pooler_output = None
