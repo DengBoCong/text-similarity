@@ -2,6 +2,7 @@
 """ Implementation of Bert
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
+# https://arxiv.org/pdf/1706.03762.pdf
 #
 # License: MIT License
 
@@ -301,4 +302,114 @@ class BertEncoder(nn.Module):
                 hidden_states: torch.Tensor,
                 attention_mask: torch.Tensor = None,
                 token_type_ids: torch.Tensor = None,
-                output_attentions: bool = False):
+                output_attentions: bool = False,
+                output_hidden_states: bool = False):
+        """
+        :param hidden_states: float, [batch_size, seq_length, embedding_size]
+        :param attention_mask: int, [batch_size, from_seq_length, to_seq_length]
+        :param token_type_ids: int, [batch_size, seq_length]
+        :param output_attentions: 是否输出attention
+        :param output_hidden_states: 是否输出每一层的hidden states
+        """
+        all_hidden_states = () if output_hidden_states else None
+        all_self_attentions = () if output_attentions else None
+
+        for i, layer_module in enumerate(self.layer):
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (hidden_states,)
+
+            layer_outputs = layer_module(hidden_states, attention_mask, token_type_ids, output_attentions)
+            hidden_states = layer_outputs[0]
+            if output_attentions:
+                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+
+        if output_hidden_states:
+            all_hidden_states = all_hidden_states + (hidden_states,)
+
+        return tuple(v for v in [hidden_states, all_hidden_states, all_self_attentions] if v is not None)
+
+
+class BertPooler(nn.Module):
+    def __init__(self, config: BertConfig):
+        super(BertPooler, self).__init__()
+        self.dense = nn.Linear(in_features=config.hidden_size, out_features=config.hidden_size)
+        self.activation = nn.Tanh()
+        if config.segment_type == "relative":
+            self.use_first_two = True
+        else:
+            self.use_first_two = False
+
+    def forward(self, hidden_states: torch.Tensor):
+        """
+        :param hidden_states: float, [batch_size, seq_length, hidden_size]
+        """
+        if self.use_first_two:
+            first_token_tensor = torch.mean(input=hidden_states[:, 0:2], dim=1)
+        else:
+            first_token_tensor = hidden_states[:, 0]
+        pooled_output = self.dense(first_token_tensor)
+        pooled_output = self.activation(pooled_output)
+        return pooled_output
+
+
+def mean_pooling(sequence_outputs, attention_mask):
+    token_embeddings = sequence_outputs  # First element of model_output contains all token embeddings
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+    sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    return sum_embeddings / sum_mask
+
+
+class BertModel(nn.Module):
+    def __init__(self, config: BertConfig, add_pooling_layer: bool = True):
+        super(BertModel, self).__init__()
+        self.config = config
+        self.embeddings = BertEmbedding(config=config)
+        self.encoder = BertEncoder(config=config)
+        self.pooler = BertPooler(config=config) if add_pooling_layer and not self.config.use_mean_pooling else None
+
+    def forward(self,
+                input_ids: Any = None,
+                attention_mask: Any = None,
+                token_type_ids: Any = None,
+                position_ids: Any = None,
+                inputs_embeds: Any = None,
+                output_attentions: bool = False,
+                output_hidden_states: bool = False):
+        """
+        :param input_ids: int32, [batch_size, seq_length]
+        :param attention_mask: int, [batch_size, from_seq_length, to_seq_length]
+        :param token_type_ids: token type embedding
+        :param position_ids: position ids
+        :param inputs_embeds: [batch_size, seq_length, emb_dim]
+        :param output_attentions: 是否输出attention
+        :param output_hidden_states: 是否输出每一层的hidden states
+        """
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+        elif input_ids is not None:
+            input_shape = input_ids.size()
+            batch_size, seq_length = input_shape
+        elif inputs_embeds is not None:
+            input_shape = inputs_embeds.size()[:-1]
+            batch_size, seq_length = input_shape
+        else:
+            raise ValueError("You have to specify either input_ids or inputs_embeds")
+
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
+        if attention_mask is None:
+            attention_mask = torch.ones((batch_size, seq_length), device=device)
+        if token_type_ids is None:
+            token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
+
+        embedding_output = self.embeddings(input_ids, token_type_ids, position_ids, inputs_embeds)
+        encoder_outputs = self.encoder(embedding_output, None, token_type_ids, output_attentions, output_hidden_states)
+        seq_output = encoder_outputs[0]
+        if self.pooler is not None:
+            pooled_output = self.pooler(seq_output)
+        elif self.config.use_mean_pooling:
+            pooled_output = mean_pooling(seq_output, attention_mask)
+        else:
+            pooled_output = None
+
+        return (seq_output, pooled_output) + encoder_outputs[1:]

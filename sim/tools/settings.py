@@ -11,3 +11,4 @@ from __future__ import print_function
 
 MODEL_CONFIG_FILE_PATH = "config.json"
 RNN_BASE_LOG_FILE_PATH = "./log/rnn_base.log"
+BERT_BASE_LOG_FILE_PATH = "./log/bert_base.log"

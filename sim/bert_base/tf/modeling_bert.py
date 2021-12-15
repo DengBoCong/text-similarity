@@ -2,6 +2,7 @@
 """ Implementation of Bert
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
+# https://arxiv.org/pdf/1706.03762.pdf
 #
 # License: MIT License
 
