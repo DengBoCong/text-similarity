@@ -14,8 +14,8 @@ import os
 import random
 import tensorflow as tf
 from sim.rnn_base.tf.siamese_rnn import siamese_rnn_with_embedding
-from sim.tools.data_processor import text_pair_to_token_id
-from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
+from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tf_common import load_checkpoint
 from sim.tools.tools import get_logger
 from sim.tools.pipeline import Pipeline
@@ -23,7 +23,7 @@ from typing import Any
 from typing import NoReturn
 
 
-logger = get_logger(name="actuator", file_path=RNN_BASE_LOG_FILE_PATH)
+logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class TextPairPipeline(Pipeline):

@@ -18,7 +18,7 @@ import warnings
 from dataclasses import dataclass
 from sim.bert_base import TBertConfig
 from sim.bert_base.torch.activations import ACT2FN
-from sim.tools.settings import BERT_BASE_LOG_FILE_PATH
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from transformers.file_utils import add_code_sample_docstrings
 from transformers.file_utils import add_start_docstrings
@@ -41,7 +41,7 @@ from transformers.modeling_utils import prune_linear_layer
 from typing import Optional
 from typing import Tuple
 
-logger = get_logger(name="actuator", file_path=BERT_BASE_LOG_FILE_PATH)
+logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 _CONFIG_FOR_DOC = "BertConfig"
 _TOKENIZER_FOR_DOC = "BertTokenizer"

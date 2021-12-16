@@ -13,12 +13,12 @@ from argparse import ArgumentParser
 from datetime import datetime
 from importlib import import_module
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
-from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
 from typing import NoReturn
 
-logger = get_logger(name="actuator", file_path=RNN_BASE_LOG_FILE_PATH, formatter="%(message)s")
+logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH, formatter="%(message)s")
 
 
 def actuator() -> NoReturn:

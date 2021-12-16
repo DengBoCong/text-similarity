@@ -15,8 +15,8 @@ import random
 import torch.optim
 
 from sim.rnn_base.torch.siamese_rnn import SiameseRnnWithEmbedding
-from sim.tools.data_processor import text_pair_to_token_id
-from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
+from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from sim.tools.torch_common import Checkpoint
 from sim.tools.pipeline import Pipeline
@@ -24,7 +24,7 @@ from typing import Any
 from typing import NoReturn
 
 
-logger = get_logger(name="actuator", file_path=RNN_BASE_LOG_FILE_PATH)
+logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class TextPairPipeline(Pipeline):

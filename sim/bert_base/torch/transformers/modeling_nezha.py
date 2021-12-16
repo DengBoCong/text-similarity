@@ -17,10 +17,10 @@ import sys
 import torch
 import torch.nn as nn
 from sim.bert_base.torch.transformers.modeling_bert import BertPreTrainedModel
-from sim.tools.settings import BERT_BASE_LOG_FILE_PATH
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 
-logger = get_logger(name="actuator", file_path=BERT_BASE_LOG_FILE_PATH)
+logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'

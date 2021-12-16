@@ -11,8 +11,8 @@ from __future__ import print_function
 
 import abc
 import time
-from sim.tools.data_processor import datasets_generator
-from sim.tools.settings import RNN_BASE_LOG_FILE_PATH
+from sim.tools.data_processor.process_plain_text import datasets_generator
+from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_dict_string
 from sim.tools.tools import get_logger
 from sim.tools.tools import ProgressBar
@@ -20,7 +20,7 @@ from typing import Any
 from typing import NoReturn
 
 
-logger = get_logger(name="pipeline", file_path=RNN_BASE_LOG_FILE_PATH)
+logger = get_logger(name="pipeline", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class Pipeline(abc.ABC):
