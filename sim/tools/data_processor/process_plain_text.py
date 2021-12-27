@@ -30,7 +30,7 @@ from tqdm import tqdm
 from transformers import BertTokenizer
 from typing import NoReturn
 
-logger = get_logger(name="datasets", file_path=RUNTIME_LOG_FILE_PATH)
+logger = get_logger(name="processor", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 def text_pair_to_token_id(file_path: str,
