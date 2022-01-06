@@ -9,15 +9,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import numpy as np
 import os
 import random
 import tensorflow as tf
-from sim.rnn_base.tf.siamese_rnn import siamese_rnn_with_embedding
+from datetime import datetime
+from sim.tensorflow.siamese_rnn import siamese_rnn_with_embedding
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
+from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
-from sim.tools.tf_common import load_checkpoint
+from sim.tensorflow.common import load_checkpoint
 from sim.tools.tools import get_logger
+from sim.tools.tools import save_model_config
 from sim.tools.pipeline import Pipeline
 from typing import Any
 from typing import NoReturn
@@ -94,41 +98,53 @@ class TextPairPipeline(Pipeline):
         pass
 
 
-def actuator(options: Any) -> NoReturn:
+def actuator(config_path: str, execute_type: str) -> NoReturn:
     """
-    :param options: args
+    :param config_path: 配置json文件路径
+    :param execute_type: 执行类型
     """
-    if options.execute_type == "preprocess":
+    with open(config_path, "r", encoding="utf-8") as file:
+        options = json.load(file)
+
+    # 这里在日志文件里面做一个执行分割
+    key = int(datetime.now().timestamp())
+    logger.info("========================{}========================".format(key))
+    # 训练时保存模型配置
+    if execute_type == "train" and not save_model_config(key=str(key), model_desc="RNN Base",
+                                                         model_config=options, config_path=MODEL_CONFIG_FILE_PATH):
+        raise EOFError("An error occurred while saving the configuration file")
+
+    if execute_type == "preprocess":
         logger.info("Begin preprocess train data")
-        tokenizer = text_pair_to_token_id(file_path=options.raw_train_data_path,
-                                          save_path=options.train_data_path, pad_max_len=options.vec_dim)
+        tokenizer = text_pair_to_token_id(file_path=options["raw_train_data_path"],
+                                          save_path=options["train_data_path"], pad_max_len=options["vec_dim"])
         logger.info("Begin preprocess valid data")
-        text_pair_to_token_id(file_path=options.raw_valid_data_path,
-                              save_path=options.valid_data_path, pad_max_len=options.vec_dim, tokenizer=tokenizer)
+        text_pair_to_token_id(file_path=options["raw_valid_data_path"],
+                              save_path=options["valid_data_path"], pad_max_len=options["vec_dim"], tokenizer=tokenizer)
     else:
-        model = siamese_rnn_with_embedding(emb_dim=options.embedding_dim, vec_dim=options.vec_dim,
-                                           vocab_size=options.vocab_size, units=options.units,
-                                           cell_type=options.rnn, share=options.share)
-        checkpoint_manager = load_checkpoint(checkpoint_dir=options.checkpoint_dir, execute_type=options.execute_type,
-                                             checkpoint_save_size=options.checkpoint_save_size, model=model)
+        model = siamese_rnn_with_embedding(emb_dim=options["embedding_dim"], vec_dim=options["vec_dim"],
+                                           vocab_size=options["vocab_size"], units=options["units"],
+                                           cell_type=options["rnn"], share=options["share"])
+        checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
+                                             checkpoint_save_size=options["checkpoint_save_size"], model=model)
 
         loss_metric = tf.keras.metrics.Mean()
         accuracy_metric = tf.keras.metrics.BinaryAccuracy()
-        pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options.batch_size)
+        pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options["batch_size"])
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
-        if options.execute_type == "train":
-            random.seed(options.seed)
-            os.environ['PYTHONHASHSEED'] = str(options.seed)
-            np.random.seed(options.seed)
-            tf.random.set_seed(options.seed)
+        if execute_type == "train":
+            random.seed(options["seed"])
+            os.environ['PYTHONHASHSEED'] = str(options["seed"])
+            np.random.seed(options["seed"])
+            tf.random.set_seed(options["seed"])
 
             optimizer = tf.optimizers.Adam(name="optimizer")
-            pipeline.train(options.train_data_path, options.valid_data_path, options.epochs,
-                           optimizer, checkpoint_manager, options.checkpoint_save_freq, history)
-        elif options.execute_type == "evaluate":
-            pipeline.evaluate(options.valid_data_path, history)
-        elif options.execute_type == "inference":
+            pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
+                           optimizer, checkpoint_manager, options["checkpoint_save_freq"], history)
+        elif execute_type == "evaluate":
+            pipeline.evaluate(options["valid_data_path"], history)
+        elif execute_type == "inference":
             pass
         else:
             raise ValueError("execute_type error")

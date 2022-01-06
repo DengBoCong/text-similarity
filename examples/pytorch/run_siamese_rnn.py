@@ -9,16 +9,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import numpy as np
 import os
 import random
 import torch.optim
 
-from sim.rnn_base.torch.siamese_rnn import SiameseRnnWithEmbedding
+from datetime import datetime
+from sim.pytorch.siamese_rnn import SiameseRnnWithEmbedding
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
+from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
-from sim.tools.torch_common import Checkpoint
+from sim.tools.tools import save_model_config
+from sim.pytorch.common import Checkpoint
 from sim.tools.pipeline import Pipeline
 from typing import Any
 from typing import NoReturn
@@ -90,43 +94,60 @@ class TextPairPipeline(Pipeline):
         pass
 
 
-def actuator(options: Any) -> NoReturn:
+def actuator(config_path: str, execute_type: str) -> NoReturn:
     """
-    :param options: args
+    :param config_path: 配置json文件路径
+    :param execute_type: 执行类型
     """
-    if options.execute_type == "preprocess":
-        logger.info("Begin preprocess train data")
-        tokenizer = text_pair_to_token_id(file_path=options.raw_train_data_path,
-                                          save_path=options.train_data_path, pad_max_len=options.vec_dim)
-        logger.info("Begin preprocess valid data")
-        text_pair_to_token_id(file_path=options.raw_valid_data_path,
-                              save_path=options.valid_data_path, pad_max_len=options.vec_dim, tokenizer=tokenizer)
-    else:
-        model = SiameseRnnWithEmbedding(emb_dim=options.embedding_dim, vocab_size=options.vocab_size,
-                                        units=options.units, dropout=options.dropout, num_layers=options.num_layers,
-                                        rnn=options.rnn, share=options.share, if_bi=options.bi)
+    with open(config_path, "r", encoding="utf-8") as file:
+        options = json.load(file)
 
-        pipeline = TextPairPipeline([model], None, None, options.batch_size)
+    # 这里在日志文件里面做一个执行分割
+    key = int(datetime.now().timestamp())
+    logger.info("========================{}========================".format(key))
+    # 训练时保存模型配置
+    if execute_type == "train" and not save_model_config(key=str(key), model_desc="RNN Base",
+                                                         model_config=options, config_path=MODEL_CONFIG_FILE_PATH):
+        raise EOFError("An error occurred while saving the configuration file")
+
+    if execute_type == "preprocess":
+        logger.info("Begin preprocess train data")
+        tokenizer = text_pair_to_token_id(file_path=options["raw_train_data_path"],
+                                          save_path=options["train_data_path"], pad_max_len=options["vec_dim"])
+        logger.info("Begin preprocess valid data")
+        text_pair_to_token_id(file_path=options["raw_valid_data_path"], save_path=options["valid_data_path"],
+                              pad_max_len=options["vec_dim"], tokenizer=tokenizer)
+    else:
+        model = SiameseRnnWithEmbedding(emb_dim=options["embedding_dim"], vocab_size=options["vocab_size"],
+                                        units=options["units"], dropout=options["dropout"],
+                                        num_layers=options["num_layers"], rnn=options["rnn"],
+                                        share=options["share"], if_bi=options["bi"])
+
+        pipeline = TextPairPipeline([model], None, None, options["batch_size"])
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
-        if options.execute_type == "train":
-            random.seed(options.seed)
-            os.environ['PYTHONHASHSEED'] = str(options.seed)
-            np.random.seed(options.seed)
-            torch.manual_seed(options.seed)
-            torch.cuda.manual_seed(options.seed)
-            torch.cuda.manual_seed_all(options.seed)
+        if execute_type == "train":
+            random.seed(options["seed"])
+            os.environ['PYTHONHASHSEED'] = str(options["seed"])
+            np.random.seed(options["seed"])
+            torch.manual_seed(options["seed"])
+            torch.cuda.manual_seed(options["seed"])
+            torch.cuda.manual_seed_all(options["seed"])
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.enabled = False
 
             optimizer = torch.optim.Adam([{"params": model.parameters(), "lr": 1e-3}])
-            checkpoint = Checkpoint(checkpoint_dir=options.checkpoint_dir, optimizer=optimizer, model=model)
-            pipeline.train(options.train_data_path, options.valid_data_path, options.epochs,
-                           optimizer, checkpoint, options.checkpoint_save_freq, history)
-        elif options.execute_type == "evaluate":
-            pipeline.evaluate(options.valid_data_path, history)
-        elif options.execute_type == "inference":
+            checkpoint = Checkpoint(checkpoint_dir=options["checkpoint_dir"], optimizer=optimizer, model=model)
+            pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
+                           optimizer, checkpoint, options["checkpoint_save_freq"], history)
+        elif execute_type == "evaluate":
+            pipeline.evaluate(options["valid_data_path"], history)
+        elif execute_type == "inference":
             pass
         else:
             raise ValueError("execute_type error")
+
+
+if __name__ == '__main__':
+    actuator(config_path="./data/config/siamse_rnn.json", execute_type="preprocess")

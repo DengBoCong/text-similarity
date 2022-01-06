@@ -153,17 +153,14 @@ def get_logger(name: str,
     return logger
 
 
-def save_model_config(key: str, model_desc: str, options: Any, config_path: str) -> bool:
+def save_model_config(key: str, model_desc: str, model_config: dict, config_path: str) -> bool:
     """ 保存单次训练执行时，模型的对应配置
     :param key: 配置key
     :param model_desc: 模型说明
-    :param options: args
+    :param model_config: 训练配置
     :param config_path: 配置文件保存路径
     :return: 执行成功与否
     """
-    if options.execute_type != "train":
-        return True
-
     try:
         config_json = {}
         if os.path.exists(config_path) and os.path.getsize(config_path) != 0:
@@ -171,7 +168,6 @@ def save_model_config(key: str, model_desc: str, options: Any, config_path: str)
                 config_json = json.load(file)
 
         with open(config_path, "w+", encoding="utf-8") as config_file:
-            model_config = options.__dict__
             model_config["execute_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             model_config["model_desc"] = model_desc
             config_json[key] = model_config
