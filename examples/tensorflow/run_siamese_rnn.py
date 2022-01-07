@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" Tensorflow Version Actuator
+""" TensorFlow Run Siamese RNN
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
@@ -16,21 +16,21 @@ import random
 import tensorflow as tf
 from datetime import datetime
 from sim.tensorflow.siamese_rnn import siamese_rnn_with_embedding
+from sim.tools.data_processor.process_plain_text import datasets_generator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tensorflow.common import load_checkpoint
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
-from sim.tools.pipeline import Pipeline
+from sim.tools.pipeline import NormalPipeline
 from typing import Any
 from typing import NoReturn
-
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
-class TextPairPipeline(Pipeline):
+class TextPairPipeline(NormalPipeline):
     def __init__(self,
                  model: list,
                  loss_metric: tf.keras.metrics.Metric,
@@ -141,10 +141,14 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
 
             optimizer = tf.optimizers.Adam(name="optimizer")
             pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
-                           optimizer, checkpoint_manager, options["checkpoint_save_freq"], history)
+                           optimizer, checkpoint_manager, options["checkpoint_save_freq"], datasets_generator, history)
         elif execute_type == "evaluate":
-            pipeline.evaluate(options["valid_data_path"], history)
+            pipeline.evaluate(options["valid_data_path"], datasets_generator, history)
         elif execute_type == "inference":
             pass
         else:
             raise ValueError("execute_type error")
+
+
+if __name__ == '__main__':
+    actuator(config_path="./data/config/siamse_rnn.json", execute_type="preprocess")

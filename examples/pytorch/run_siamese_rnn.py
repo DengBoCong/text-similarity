@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" Pytorch Version Actuator
+""" Pytorch Run Siamese RNN
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
@@ -17,13 +17,14 @@ import torch.optim
 
 from datetime import datetime
 from sim.pytorch.siamese_rnn import SiameseRnnWithEmbedding
+from sim.tools.data_processor.process_plain_text import datasets_generator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
 from sim.pytorch.common import Checkpoint
-from sim.tools.pipeline import Pipeline
+from sim.tools.pipeline import NormalPipeline
 from typing import Any
 from typing import NoReturn
 
@@ -31,7 +32,7 @@ from typing import NoReturn
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
-class TextPairPipeline(Pipeline):
+class TextPairPipeline(NormalPipeline):
     def __init__(self, model: list, loss_metric: Any, accuracy_metric: Any, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
@@ -140,9 +141,9 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
             optimizer = torch.optim.Adam([{"params": model.parameters(), "lr": 1e-3}])
             checkpoint = Checkpoint(checkpoint_dir=options["checkpoint_dir"], optimizer=optimizer, model=model)
             pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
-                           optimizer, checkpoint, options["checkpoint_save_freq"], history)
+                           optimizer, checkpoint, options["checkpoint_save_freq"], datasets_generator, history)
         elif execute_type == "evaluate":
-            pipeline.evaluate(options["valid_data_path"], history)
+            pipeline.evaluate(options["valid_data_path"], datasets_generator, history)
         elif execute_type == "inference":
             pass
         else:

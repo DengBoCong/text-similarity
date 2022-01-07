@@ -11,7 +11,6 @@ from __future__ import print_function
 
 import abc
 import time
-from sim.tools.data_processor.process_plain_text import datasets_generator
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_dict_string
 from sim.tools.tools import get_logger
@@ -24,6 +23,20 @@ logger = get_logger(name="pipeline", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class Pipeline(abc.ABC):
+    @abc.abstractmethod
+    def train(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def evaluate(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def inference(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class NormalPipeline(Pipeline):
     def __init__(self, model: list, loss_metric: Any, accuracy_metric: Any, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
@@ -43,7 +56,8 @@ class Pipeline(abc.ABC):
               optimizer: Any,
               checkpoint: Any,
               checkpoint_save_freq: int,
-              history=None, *args, **kwargs) -> dict:
+              datasets_generator: Any,
+              history: dict = None, *args, **kwargs) -> dict:
         """ Train Module
         :param train_file_path: 已转换为token id的训练数据文件路径
         :param valid_file_path: 已转换为token id的验证数据文件路径
@@ -51,6 +65,7 @@ class Pipeline(abc.ABC):
         :param optimizer: 优化器
         :param checkpoint: 检查点管理器
         :param checkpoint_save_freq: 检查点保存频率
+        :param datasets_generator: 数据生成器，最后一个元素必须是step数
         :param history: 用于保存训练过程中的历史指标数据
         """
         if history is None:
@@ -71,7 +86,7 @@ class Pipeline(abc.ABC):
             for batch, batch_dataset in enumerate(datasets_generator(
                     file_path=train_file_path, batch_size=self.batch_size)):
                 if batch == 0:
-                    progress_bar.reset(total=batch_dataset[3], num=self.batch_size)
+                    progress_bar.reset(total=batch_dataset[-1], num=self.batch_size)
 
                 train_metrics = self._train_step(batch_dataset=batch_dataset, optimizer=optimizer, *args, **kwargs)
 
@@ -85,15 +100,20 @@ class Pipeline(abc.ABC):
                 checkpoint.save()
 
                 logger.info("Begin valid")
-                self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
+                self._valid(valid_file_path, progress_bar,
+                            datasets_generator=datasets_generator, history=history, *args, **kwargs)
 
         logger.info("Train end")
         self._save_model(*args, **kwargs)
         return history
 
-    def evaluate(self, valid_file_path: str, history=None, *args, **kwargs) -> dict:
+    def evaluate(self,
+                 valid_file_path: str,
+                 datasets_generator: Any,
+                 history=None, *args, **kwargs) -> dict:
         """ 验证模块
         :param valid_file_path: 验证数据文本路径
+        :param datasets_generator: 数据生成器，最后一个元素必须是step数
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
@@ -102,15 +122,29 @@ class Pipeline(abc.ABC):
             history = {}
 
         progress_bar = ProgressBar()
-        self._valid(valid_file_path, progress_bar, history=history, *args, **kwargs)
+        self._valid(valid_file_path, progress_bar,
+                    datasets_generator=datasets_generator, history=history, *args, **kwargs)
 
         logger.info("Evaluate end")
         return history
 
-    def _valid(self, valid_file_path: str, progress_bar: ProgressBar, history=None, *args, **kwargs) -> NoReturn:
+    def inference(self, query1: str, query2: str) -> Any:
+        """ 推断模块
+        :param query1: 文本1
+        :param query2: 文本2
+        :return:
+        """
+        pass
+
+    def _valid(self,
+               valid_file_path: str,
+               progress_bar: ProgressBar,
+               datasets_generator: Any,
+               history: dict = None, *args, **kwargs) -> NoReturn:
         """ 验证模块
         :param valid_file_path: 验证数据文本路径
         :param progress_bar: 进度工具
+        :param datasets_generator: 数据生成器，最后一个元素必须是step数
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
@@ -125,7 +159,7 @@ class Pipeline(abc.ABC):
         for valid_batch, valid_batch_dataset in enumerate(datasets_generator(
                 file_path=valid_file_path, batch_size=self.batch_size)):
             if valid_batch == 0:
-                progress_bar.reset(total=valid_batch_dataset[3], num=self.batch_size)
+                progress_bar.reset(total=valid_batch_dataset[-1], num=self.batch_size)
 
             valid_metrics = self._valid_step(dataset=valid_batch_dataset, *args, **kwargs)
 
