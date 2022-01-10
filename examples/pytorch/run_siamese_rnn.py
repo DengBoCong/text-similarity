@@ -16,7 +16,7 @@ import random
 import torch.optim
 
 from datetime import datetime
-from sim.pytorch.siamese_rnn import SiameseRnnWithEmbedding
+from sim.pytorch.modeling_siamese_rnn import SiameseRnnWithEmbedding
 from sim.tools.data_processor.process_plain_text import datasets_generator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH

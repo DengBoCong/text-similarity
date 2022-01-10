@@ -15,7 +15,7 @@ import os
 import random
 import tensorflow as tf
 from datetime import datetime
-from sim.tensorflow.siamese_rnn import siamese_rnn_with_embedding
+from sim.tensorflow.modeling_siamese_rnn import siamese_rnn_with_embedding
 from sim.tools.data_processor.process_plain_text import datasets_generator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
