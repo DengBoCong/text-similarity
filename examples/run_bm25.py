@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" Run TFIdf with sklearn
+""" Run BM25 with sklearn
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #

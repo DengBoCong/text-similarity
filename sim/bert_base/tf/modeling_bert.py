@@ -15,7 +15,6 @@ import numpy as np
 import tensorflow as tf
 from sim.bert_base import BertConfig
 from typing import Any
-from typing import NoReturn
 
 
 def embedding_lookup(input_ids: tf.Tensor,
@@ -132,42 +131,7 @@ def gen_relative_positions_embeddings(position: int, d_model: int) -> tuple:
     return tf.cast(pos_encoding, dtype=d_type)
 
 
-def bert_embedding(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
-    """Bert Embedding
-    :param config: BertConfig实例
-    :param is_training: 是否处于训练模式
-    :param manual_seed: 随机种子
-    """
-    input_ids = tf.keras.Input(shape=(None,))
-    token_type_ids = tf.keras.Input(shape=(None,))
-    segment_token_type_ids = token_type_ids % 10
-    diff_token_type_ids = token_type_ids // 10
 
-    batch_size, seq_len = tf.shape(input_ids)[0], tf.shape(input_ids)[1]
-
-    word_embeddings = tf.keras.layers.Embedding(input_dim=config.vocab_size, output_dim=config.hidden_size)(input_ids)
-
-    if config.use_relative_position:
-        pos_encoding = gen_relative_positions_embeddings(position=config.vocab_size, d_model=config.hidden_size)
-        position_embeddings = pos_encoding[:, :seq_len, :]
-    else:
-        position_ids = tf.expand_dims(input=tf.range(start=0, limit=seq_len, delta=1), axis=0)
-        position_ids = tf.repeat(input=position_ids, repeats=[batch_size], axis=0)
-        position_embeddings = tf.keras.layers.Embedding(
-            input_dim=config.max_position_embeddings, output_dim=config.hidden_size)(position_ids)
-    segment_token_type_embeddings = tf.keras.layers.Embedding(
-        input_dim=config.type_vocab_size, output_dim=config.hidden_size)(segment_token_type_ids)
-    diff_token_type_embeddings = tf.keras.layers.Embedding(
-        input_dim=5, output_dim=config.hidden_size)(diff_token_type_ids)
-    # token_type_embeddings = segment_token_type_embeddings + diff_token_type_embeddings
-    token_type_embeddings = segment_token_type_embeddings
-
-    embeddings = word_embeddings + position_embeddings + token_type_embeddings
-    layer_norm_output = tf.keras.layers.LayerNormalization(epsilon=config.layer_norm_eps)(embeddings)
-    dropout_output = tf.keras.layers.Dropout(rate=config.hidden_dropout_prob,
-                                             seed=manual_seed)(layer_norm_output, is_training)
-
-    return tf.keras.Model(inputs=[input_ids, token_type_ids], outputs=dropout_output)
 
 
 def split_heads(input_tensor: tf.Tensor, head_num: int, head_size: int):
