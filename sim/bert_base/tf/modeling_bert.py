@@ -134,78 +134,13 @@ def gen_relative_positions_embeddings(position: int, d_model: int) -> tuple:
 
 
 
-def split_heads(input_tensor: tf.Tensor, head_num: int, head_size: int):
-    """分拆最后一个维度到 (num_heads, depth)
-    :param input_tensor: 输入
-    :param head_num: 注意力头数
-    :param head_size: 每个注意力头维数
-    """
-    batch_size = input_tensor.shape[0]
-    input_tensor = tf.reshape(input_tensor, (batch_size, -1, head_num, head_size))
-    return tf.transpose(input_tensor, perm=[0, 2, 1, 3])
 
 
-def scaled_dot_product_attention(query: tf.Tensor,
-                                 key: tf.Tensor,
-                                 value: tf.Tensor,
-                                 hidden_size: int,
-                                 dropout: float,
-                                 is_training: bool,
-                                 mask: Any = None,
-                                 manual_seed: int = 1) -> tuple:
-    """点乘注意力计算
-    :param query: (..., seq_len_q, depth)
-    :param key: (..., seq_len_k, depth)
-    :param value: (..., seq_len_v, depth_v)
-    :param hidden_size: hidden size
-    :param dropout: 注意力dropout
-    :param is_training: 是否处于训练模式
-    :param mask: float, (..., seq_len_q, seq_len_k)
-    :param manual_seed: 随机种子
-    """
-    batch_size = tf.shape(query)[0]
-    attention_scores = tf.matmul(a=query, b=key, transpose_b=True)
-    dk = tf.cast(x=tf.shape(input=k)[-1], dtype=tf.float32)
-    attention_scores = attention_scores / tf.math.sqrt(x=dk)
-
-    if mask is not None:
-        attention_scores += (mask * -1e9)
-
-    attention_weights = tf.nn.softmax(logits=attention_scores, axis=-1)
-    attention_weights = tf.keras.layers.Dropout(rate=dropout, seed=manual_seed)(attention_weights, is_training)
-
-    context_layer = tf.matmul(a=attention_weights, b=value)
-    context_layer = tf.transpose(a=context_layer, perm=[0, 2, 1, 3])
-    context_layer = tf.reshape(tensor=context_layer, shape=(batch_size, -1, hidden_size))
-
-    return context_layer, attention_weights
 
 
-def bert_self_attention(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
-    """Bert Self-Attention
-    :param config: BertConfig实例
-    :param is_training: 是否处于训练模式
-    :param manual_seed: 随机种子
-    """
-    hidden_states = tf.keras.Input(shape=(None, None))
-    mask = tf.keras.Input(shape=(None, None, None))
 
-    assert config.hidden_size % config.num_attention_heads == 0
-    attention_head_size = config.hidden_size // config.num_attention_heads
 
-    query = tf.keras.layers.Dense(units=config.hidden_size)(hidden_states)
-    key = tf.keras.layers.Dense(units=config.hidden_size)(hidden_states)
-    value = tf.keras.layers.Dense(units=config.hidden_size)(hidden_states)
 
-    query = split_heads(input_tensor=query, head_num=config.num_attention_heads, head_size=attention_head_size)
-    key = split_heads(input_tensor=key, head_num=config.num_attention_heads, head_size=attention_head_size)
-    value = split_heads(input_tensor=value, head_num=config.num_attention_heads, head_size=attention_head_size)
-
-    scaled_attention, attention_weights = scaled_dot_product_attention(
-        query=query, key=key, value=value, hidden_size=config.hidden_size, dropout=config.attention_prob_dropout_prob,
-        is_training=is_training, mask=mask, manual_seed=manual_seed)
-
-    return tf.keras.Model(inputs=[hidden_states, mask], outputs=[scaled_attention, attention_weights])
 
 
 def bert_self_output(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
@@ -225,39 +160,10 @@ def bert_self_output(config: BertConfig, is_training: bool, manual_seed: int = 1
     return tf.keras.Model(inputs=[hidden_states, input_tensor], outputs=hidden_states)
 
 
-def bert_attention(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
-    """Bert Attention
-    :param config: BertConfig实例
-    :param is_training: 是否处于训练模式
-    :param manual_seed: 随机种子
-    """
-    hidden_states = tf.keras.Input(shape=(None, None))
-    mask = tf.keras.Input(shape=(None, None, None))
-
-    self_outputs = bert_self_attention(config=config, is_training=is_training,
-                                       manual_seed=manual_seed)(hidden_states, mask)
-    attention_output = bert_self_output(config=config, is_training=is_training,
-                                        manual_seed=manual_seed)(self_outputs[0], hidden_states)
-
-    return tf.keras.Model(inputs=[hidden_states, mask], outputs=[attention_output, self_outputs[1]])
 
 
-def bert_layer(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
-    """Bert Layer
-    :param config: BertConfig实例
-    :param is_training: 是否处于训练模式
-    :param manual_seed: 随机种子
-    """
-    hidden_states = tf.keras.Input(shape=(None, None))
-    mask = tf.keras.Input(shape=(None, None, None))
 
-    attention_output, attention_weights = bert_attention(config=config, is_training=is_training,
-                                                         manual_seed=manual_seed)(hidden_states, mask)
-    outputs = tf.keras.layers.Dense(units=config.intermediate_size, activation=config.hidden_act)(attention_output)
-    outputs = bert_self_output(config=config, is_training=is_training,
-                               manual_seed=manual_seed)(outputs, attention_output)
 
-    return tf.keras.Model(inputs=[hidden_states, mask], outputs=outputs)
 
 
 def bert_encoder(config: BertConfig, is_training: bool, manual_seed: int = 1) -> tf.keras.Model:
@@ -291,38 +197,4 @@ def bert_pooler(config: BertConfig) -> tf.keras.Model:
     return tf.keras.Model(inputs=hidden_states, outputs=pooled_output)
 
 
-def bert_model(config: BertConfig,
-               is_training: bool,
-               add_pooling_layer: bool = True,
-               manual_seed: int = 1) -> tf.keras.Model:
-    """Bert Model
-    :param config: BertConfig实例
-    :param is_training: train/eval
-    :param add_pooling_layer: 添加池化层
-    :param manual_seed: 随机种子
-    """
-    input_ids = tf.keras.Input(shape=(None,))
-    token_type_ids = tf.keras.Input(shape=(None,))
-    input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
 
-    config = copy.deepcopy(config)
-    if not is_training:
-        config.hidden_dropout_prob = 0.0
-        config.attention_prob_dropout_prob = 0.0
-
-    embedding_output = bert_embedding(config=config, is_training=is_training,
-                                      manual_seed=manual_seed)(input_ids, token_type_ids)
-    encoder_output = bert_encoder(config=config, is_training=is_training,
-                                  manual_seed=manual_seed)(embedding_output, input_mask)
-    if add_pooling_layer and not config.use_mean_pooling:
-        pooler_output = bert_pooler(config=config)(encoder_output)
-    elif config.use_mean_pooling:
-        mask = tf.cast(x=tf.math.not_equal(x=input_ids, y=0), dtype=tf.float32)
-        sum_mask = tf.reduce_sum(input_tensor=mask, axis=-1, keepdims=True)
-        mul_msk = tf.reduce_sum(input_tensor=tf.multiply(x=tf.expand_dims(input=mask, axis=-1),
-                                                         y=encoder_output), axis=1)
-        pooler_output = tf.divide(x=mul_msk, y=sum_mask)
-    else:
-        pooler_output = None
-
-    return tf.keras.Model(inputs=[input_ids, input_mask], outputs=[encoder_output, pooler_output])
