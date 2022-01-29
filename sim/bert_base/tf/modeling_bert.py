@@ -182,19 +182,7 @@ def bert_encoder(config: BertConfig, is_training: bool, manual_seed: int = 1) ->
     return tf.keras.Model(inputs=[hidden_states, mask], output=outputs)
 
 
-def bert_pooler(config: BertConfig) -> tf.keras.Model:
-    """Bert Pooler
-    :param config: BertConfig实例
-    """
-    hidden_states = tf.keras.Input(shape=(None, None))
-    if config.segment_type == "relative":
-        first_token_tensor = tf.reduce_mean(input_tensor=hidden_states[:, 0:2], axis=1)
-    else:
-        first_token_tensor = hidden_states[:, 0]
 
-    pooled_output = tf.keras.layers.Dense(units=config.hidden_size, activation="tanh")(first_token_tensor)
-
-    return tf.keras.Model(inputs=hidden_states, outputs=pooled_output)
 
 
 

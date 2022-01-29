@@ -12,7 +12,6 @@
 </div>
 
 # Overview
-+ python >= 3.5
 + **Dataset**: Chinese/English Corpus, ☞  [Click Here](https://github.com/DengBoCong/text-similarity/tree/main/corpus)
 + **The implemented method is as follows:**：
    + TF-IDF
@@ -21,6 +20,12 @@
    + SIF/uSIF
    + RNN Base
    + Bert Base
+
+# Dependency
+```shell
+python >= 3.5
+TensorFlow 
+```
 
 # Usages
 
@@ -102,3 +107,6 @@ actuator()
 
 ```python
 ```
+
+# Reference
+~~~~~~~~

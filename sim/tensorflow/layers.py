@@ -11,6 +11,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 import tensorflow.keras as keras
+from sim.tensorflow.common import recompute_grad
+from sim.tensorflow.common import scaled_dot_product_attention
 from typing import Any
 
 
@@ -41,7 +43,6 @@ class PositionEmbedding(keras.layers.Layer):
         self.hierarchical = hierarchical
         self.custom_position_ids = custom_position_ids
         self.embeddings_initializer = embeddings_initializer
-        self.embeddings = None
 
     def build(self, input_shape):
         super(PositionEmbedding, self).build(input_shape)
@@ -100,152 +101,290 @@ class PositionEmbedding(keras.layers.Layer):
         return base_config
 
 
-def scaled_dot_product_attention(query: tf.Tensor,
-                                 key: tf.Tensor,
-                                 value: tf.Tensor,
-                                 hidden_size: int,
-                                 attention_head_size: int,
-                                 dropout: float,
-                                 is_training: bool,
-                                 mask: Any = None,
-                                 manual_seed: int = 1) -> tuple:
-    """点乘注意力计算
-    :param query: (..., seq_len_q, depth)
-    :param key: (..., seq_len_k, depth)
-    :param value: (..., seq_len_v, depth_v)
-    :param hidden_size: hidden size
-    :param attention_head_size: 分头之后维度大小
-    :param dropout: 注意力dropout
-    :param is_training: 是否处于训练模式
-    :param mask: float, (..., seq_len_q, seq_len_k)
-    :param manual_seed: 随机种子
+class Embedding(keras.layers.Embedding):
+    """扩展Embedding层
     """
-    batch_size = tf.shape(query)[0]
-    attention_scores = tf.matmul(a=query, b=key, transpose_b=True)
-    attention_scores = attention_scores / tf.math.sqrt(x=attention_head_size)
 
-    if mask is not None:
-        attention_scores += (mask * -1e9)
+    def compute_mask(self, inputs, mask=None):
+        """为了适配T5，保证第一个token不被mask
+        """
+        if keras.backend.ndim(inputs) == 2:
+            mask = super(Embedding, self).compute_mask(inputs, mask)
+            if mask is not None:
+                mask1 = keras.backend.ones_like(mask[:, :1], dtype="bool")
+                mask2 = mask[:, 1:]
+                return keras.backend.concatenate([mask1, mask2], 1)
+        else:
+            return mask
 
-    attention_weights = tf.nn.softmax(logits=attention_scores, axis=-1)
-    attention_weights = keras.layers.Dropout(rate=dropout, seed=manual_seed)(attention_weights, is_training)
+    def call(self, inputs, mode: str = "embedding"):
+        """新增mode参数，可以为embedding或dense。如果为embedding，
+           则等价于普通Embedding层；如果为dense，则等价于无bias的Dense层。
+        """
+        if mode == "embedding":
+            return super(Embedding, self).call(inputs)
+        else:
+            return tf.linalg.matmul(a=inputs, b=self.embeddings, transpose_b=True)
 
-    context_layer = tf.matmul(a=attention_weights, b=value)
-    context_layer = tf.transpose(a=context_layer, perm=[0, 2, 1, 3])
-    context_layer = tf.reshape(tensor=context_layer, shape=(batch_size, -1, hidden_size))
+    def compute_output_shape(self, input_shape):
+        """关于判据，本来是通过缓存call时的mode参数来判断的，但是后来发现
+        Keras在使用compute_output_shape的时候不一定配套调用了call函数，
+        所以缓存的mode可能是不准的，因此只能出此下策。
+        """
+        if len(input_shape) == 2:
+            return super(Embedding, self).compute_output_shape(input_shape)
+        else:
+            return input_shape[:2] + (keras.backend.int_shape(self.embeddings)[0],)
 
-    return context_layer, attention_weights
 
-
-def transpose_for_scores(input_tensor: tf.Tensor, head_num: int, head_size: int):
-    """分拆最后一个维度到 (num_heads, depth)
-    :param input_tensor: 输入
-    :param head_num: 注意力头数
-    :param head_size: 每个注意力头维数
+class BiasAdd(keras.layers.Layer):
+    """偏置项
     """
-    batch_size = input_tensor.shape[0]
-    input_tensor = tf.reshape(input_tensor, (batch_size, -1, head_num, head_size))
-    return tf.transpose(input_tensor, perm=[0, 2, 1, 3])
+
+    def __init__(self, **kwargs):
+        super(BiasAdd, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        super(BiasAdd, self).build(input_shape)
+        self.bias = self.add_weight(name="bias", shape=(input_shape[-1],), initializer="zeros")
+
+    def call(self, inputs, *args, **kwargs):
+        return keras.backend.bias_add(inputs, self.bias)
 
 
-def bert_self_attention(num_heads: int,
-                        head_size: int,
-                        attention_func: Any,
-                        is_training: bool,
-                        attention_dropout: float,
-                        use_bias: bool = True,
-                        key_size: int = None,
-                        hidden_size: int = None,
-                        initializer: Any = "glorot_uniform",
-                        manual_seed: int = 1,
-                        name: str = "multi-head-self-attention") -> keras.Model:
-    """Bert Self-Attention
-    :param num_heads: 注意力头数
-    :param head_size: Attention中V的head_size
-    :param attention_func: 注意力计算方法
-    :param is_training: 是否处于训练模式
-    :param attention_dropout: Attention矩阵的Dropout比例
-    :param use_bias: 是否加上偏差项
-    :param key_size: Attention中Q,K的head_size
-    :param hidden_size: 编码维度
-    :param initializer: 初始化器
-    :param manual_seed: 随机种子
-    :param name: 模型名
+class FeedForward(keras.layers.Layer):
+    """FeedForward层
     """
-    query_inputs = keras.Input(shape=(None, None))
-    key_inputs = keras.Input(shape=(None, None))
-    value_inputs = keras.Input(shape=(None, None))
-    mask = keras.Input(shape=(None, None, None))
-    key_size = key_size if key_size is not None else head_size
-    hidden_size = hidden_size if hidden_size is not None else num_heads * head_size
 
-    query = keras.layers.Dense(units=key_size * num_heads, use_bias=use_bias,
-                               kernel_initializer=initializer)(query_inputs)
-    key = keras.layers.Dense(units=key_size * num_heads, use_bias=use_bias,
-                             kernel_initializer=initializer)(key_inputs)
-    value = keras.layers.Dense(units=head_size * num_heads, use_bias=use_bias,
-                               kernel_initializer=initializer)(value_inputs)
-
-    query = transpose_for_scores(input_tensor=query, head_num=num_heads, head_size=key_size)
-    key = transpose_for_scores(input_tensor=key, head_num=num_heads, head_size=key_size)
-    value = transpose_for_scores(input_tensor=value, head_num=num_heads, head_size=head_size)
-
-    scaled_attention, attention_weights = attention_func(
-        query=query,
-        key=key,
-        value=value,
-        hidden_size=hidden_size,
-        attention_head_size=head_size,
-        dropout=attention_dropout,
-        is_training=is_training,
-        mask=mask,
-        manual_seed=manual_seed
-    )
-
-    attn_outputs = keras.layers.Dense(units=hidden_size, use_bias=use_bias,
-                                      kernel_initializer=initializer)(scaled_attention)
-
-    return keras.Model(inputs=[query_inputs, key_inputs, value_inputs, mask],
-                       outputs=[attn_outputs, attention_weights], name=name)
-
-
-def feed_forward(units: int,
+    def __init__(self,
+                 units: int,
                  activation: Any = "gelu",
                  use_bias: bool = True,
                  kernel_initializer: Any = "glorot_uniform",
-                 name: str = "feedforward") -> keras.Model:
-    """FeedForward层
-    https://arxiv.org/abs/2002.05202
-    :param units: 输出维度
-    :param use_bias: 是否使用偏差项
-    :param activation: 激活函数，如果传入的是list，则将使用门控线性单元
-    :param kernel_initializer: 初始化器
-    :param name: 模型名
+                 **kwargs):
+        """
+        https://arxiv.org/abs/2002.05202
+        :param units: 输出维度
+        :param use_bias: 是否使用偏差项
+        :param activation: 激活函数，如果传入的是list，则将使用门控线性单元
+        :param kernel_initializer: 初始化器
+        :param name: 模型名
+        """
+        super(FeedForward, self).__init__(**kwargs)
+        self.units = units
+        self.activation = [activation] if not isinstance(activation, list) else activation
+        self.use_bias = use_bias
+        self.kernel_initializer = kernel_initializer
+
+    def build(self, input_shape):
+        super(FeedForward, self).build(input_shape)
+        for index in range(len(self.activation)):
+            setattr(self, f"inner_dense_{index}", keras.layers.Dense(
+                units=self.units,
+                activation=self.activation[index],
+                use_bias=self.use_bias,
+                kernel_initializer=self.kernel_initializer
+            ))
+
+        self.output_dense = keras.layers.Dense(
+            units=input_shape[-1],
+            use_bias=self.use_bias,
+            kernel_initializer=self.kernel_initializer
+        )
+
+    @recompute_grad
+    def call(self, inputs, *args, **kwargs):
+        outputs = self.inner_dense_0(inputs)
+        for index in range(1, len(self.activation)):
+            outputs = outputs * getattr(self, f"inner_dense_{index}")(inputs)
+
+        outputs = self.output_dense(outputs)
+
+        return outputs
+
+    def get_config(self):
+        config = {
+            'units': self.units,
+            'activation': [keras.activations.serialize(act) for act in self.activation],
+            'use_bias': self.use_bias,
+            'kernel_initializer': keras.initializers.serialize(self.kernel_initializer),
+        }
+        base_config = super(FeedForward, self).get_config()
+        base_config.update(config)
+        return base_config
+
+
+class BertSelfAttention(keras.layers.Layer):
+    """定义Self-Attention
     """
-    inputs = keras.Input(shape=(None, None))
 
-    if not isinstance(activation, list):
-        activation = [activation]
+    def __init__(self,
+                 num_heads: int,
+                 head_size: int,
+                 batch_size: int,
+                 attention_dropout: float,
+                 use_bias: bool = True,
+                 key_size: int = None,
+                 hidden_size: int = None,
+                 initializer: Any = "glorot_uniform",
+                 **kwargs):
+        """
+        :param num_heads: 注意力头数
+        :param head_size: Attention中V的head_size
+        :param batch_size: batch size
+        :param attention_dropout: Attention矩阵的Dropout比例
+        :param use_bias: 是否加上偏差项
+        :param key_size: Attention中Q,K的head_size
+        :param hidden_size: 编码维度
+        :param initializer: 初始化器
+        """
+        super(BertSelfAttention, self).__init__(**kwargs)
+        self.num_heads = num_heads
+        self.head_size = head_size
+        self.batch_size = batch_size
+        self.attention_dropout = attention_dropout
+        self.use_bias = use_bias
+        self.key_size = key_size if key_size is not None else head_size
+        self.hidden_size = hidden_size if hidden_size is not None else num_heads * head_size
+        self.initializer = initializer
 
-    outputs = keras.layers.Dense(
-        units=units,
-        activation=activation[0],
-        use_bias=use_bias,
-        kernel_initializer=kernel_initializer
-    )(inputs)
+    def build(self, input_shape):
+        super(BertSelfAttention, self).build(input_shape)
+        self.query_dense = keras.layers.Dense(units=self.key_size * self.num_heads,
+                                              use_bias=self.use_bias, kernel_initializer=self.initializer)
+        self.key_dense = keras.layers.Dense(units=self.key_size * self.num_heads,
+                                            use_bias=self.use_bias, kernel_initializer=self.initializer)
+        self.value_dense = keras.layers.Dense(units=self.head_size * self.num_heads,
+                                              use_bias=self.use_bias, kernel_initializer=self.initializer)
+        self.output_dense = keras.layers.Dense(units=self.hidden_size, use_bias=self.use_bias,
+                                               kernel_initializer=self.initializer)
 
-    for index in range(1, len(activation)):
-        outputs = keras.layers.Dense(
-            units=units,
-            activation=activation[index],
-            use_bias=use_bias,
-            kernel_initializer=kernel_initializer
-        )(outputs)
+    def transpose_for_scores(self, input_tensor: tf.Tensor, head_size: int):
+        """分拆最后一个维度到 (num_heads, depth)
+        :param input_tensor: 输入
+        :param head_size: 每个注意力头维数
+        """
+        input_tensor = tf.reshape(tensor=input_tensor, shape=(self.batch_size, -1, self.num_heads, head_size))
+        return tf.transpose(input_tensor, perm=[0, 2, 1, 3])
 
-    outputs = keras.layers.Dense(
-        units=units,
-        use_bias=use_bias,
-        kernel_initializer=kernel_initializer
-    )(outputs)
+    @recompute_grad
+    def call(self, inputs, *args, **kwargs):
+        query, key, value, mask = inputs
+        query = self.query_dense(query)
+        key = self.key_dense(key)
+        value = self.value_dense(value)
 
-    return keras.Model(inputs=inputs, outputs=outputs, name=name)
+        query = self.transpose_for_scores(input_tensor=query, head_size=self.key_size)
+        key = self.transpose_for_scores(input_tensor=key, head_size=self.key_size)
+        value = self.transpose_for_scores(input_tensor=value, head_size=self.head_size)
+
+        scaled_attention, attention_weights = scaled_dot_product_attention(
+            query=query,
+            key=key,
+            value=value,
+            batch_size=self.batch_size,
+            hidden_size=self.hidden_size,
+            attention_head_size=self.head_size,
+            dropout=self.attention_dropout,
+            mask=mask
+        )
+
+        attn_outputs = self.output_dense(scaled_attention)
+
+        return attn_outputs, attention_weights
+
+    def get_config(self):
+        config = {
+            "num_heads": self.num_heads,
+            "head_size": self.head_size,
+            "attention_dropout": self.attention_dropout,
+            "use_bias": self.use_bias,
+            "key_size": self.key_size,
+            "hidden_size": self.hidden_size,
+            "initializer": keras.initializers.serialize(initializer=self.initializer),
+        }
+        base_config = super(BertSelfAttention, self).get_config()
+        base_config.update(config)
+        return base_config
+
+
+class BertOutput(keras.layers.Layer):
+    """Bert 规范化输出
+    """
+
+    def __init__(self,
+                 with_pool: Any = True,
+                 with_nsp: Any = False,
+                 with_mlm: Any = False,
+                 initializer: Any = None,
+                 **kwargs):
+        assert with_pool or with_mlm  # 使用的话，二选其一传
+        self.with_pool = with_pool
+        self.with_nsp = with_nsp
+        self.with_mlm = with_mlm
+        self.initializer = keras.initializers.TruncatedNormal(stddev=0.02) if initializer is None else initializer
+
+        if self.with_pool:
+            assert "hidden_size" in kwargs
+            self.pool_activation = 'tanh' if with_pool is True else with_pool
+            self.hidden_size = kwargs["hidden_size"]
+
+        if self.with_mlm:
+            assert "embedding_size" in kwargs and "hidden_act" in kwargs \
+                   and "layer_norm_eps" in kwargs and "token_embeddings" in kwargs
+            self.mlm_activation = 'softmax' if with_mlm is True else with_mlm
+            self.embedding_size = kwargs["embedding_size"]
+            self.hidden_act = kwargs["hidden_act"]
+            self.layer_norm_eps = kwargs["layer_norm_eps"]
+            self.token_embeddings = kwargs["token_embeddings"]
+
+        del kwargs["hidden_size"]
+        del kwargs["embedding_size"]
+        del kwargs["hidden_act"]
+        del kwargs["layer_norm_eps"]
+        del kwargs["token_embeddings"]
+        super(BertOutput, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        super(BertOutput, self).build(input_shape)
+        # self.token_embeddings = Embedding(
+        #     input_dim=30522,
+        #     output_dim=768,
+        #     embeddings_initializer=keras.initializers.TruncatedNormal(stddev=0.02),
+        #     mask_zero=True,
+        #     name="embedding-token"
+        # )
+        if self.with_pool:
+            self.pooler = keras.layers.Lambda(lambda x: x[:, 0], name=f"{self.name}-pooler")
+            self.pooler_dense = keras.layers.Dense(units=self.hidden_size, activation=self.pool_activation,
+                                                   kernel_initializer=self.initializer,
+                                                   name=f"{self.name}-pooler-dense")
+            if self.with_nsp:
+                self.nsp_prob = keras.layers.Dense(units=2, activation="softmax", kernel_initializer=self.initializer,
+                                                   name=f"{self.name}-nsp-prob")
+
+        if self.with_mlm:
+            self.mlm_dense = keras.layers.Dense(units=self.embedding_size, activation=self.hidden_act,
+                                                kernel_initializer=self.initializer, name=f"{self.name}-mlm-dense")
+            self.mlm_norm = keras.layers.LayerNormalization(epsilon=self.layer_norm_eps, name=f"{self.name}-mlm-norm")
+            # sub_outputs = kwargs["token_embeddings"](sub_outputs, mode="dense")
+            self.mlm_bias = BiasAdd(name=f"{self.name}-mlm-bias")
+            self.mlm_act = keras.layers.Activation(activation=self.mlm_activation, name=f"{self.name}-mlm-activation")
+
+    def call(self, inputs, *args, **kwargs):
+        outputs = []
+        if self.with_pool:
+            sub_outputs = self.pooler(inputs)
+            sub_outputs = self.pooler_dense(sub_outputs)
+
+            if self.with_nsp:
+                sub_outputs = self.nsp_prob(sub_outputs)
+            outputs.append(sub_outputs)
+
+        if self.with_mlm:
+            sub_outputs = self.mlm_dense(inputs)
+            sub_outputs = self.mlm_norm(sub_outputs)
+            sub_outputs = self.token_embeddings(sub_outputs, mode="dense")
+            sub_outputs = self.mlm_bias(sub_outputs)
+            sub_outputs = self.mlm_act(sub_outputs)
+            outputs.append(sub_outputs)
