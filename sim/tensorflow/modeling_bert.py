@@ -220,7 +220,7 @@ def bert_model(config: BertConfig,
             argument["embedding_size"] = config.embedding_size
             argument["hidden_act"] = config.hidden_act
             argument["layer_norm_eps"] = config.layer_norm_eps
-            argument["token_embeddings"] = token_embeddings
+            argument["vocab_dense_layer"] = token_embeddings
 
         outputs = BertOutput(with_pool, with_nsp, with_mlm, initializer=initializer, **argument)(outputs)
 

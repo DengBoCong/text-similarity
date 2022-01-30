@@ -317,7 +317,23 @@ class BertOutput(keras.layers.Layer):
                  with_nsp: Any = False,
                  with_mlm: Any = False,
                  initializer: Any = None,
+                 hidden_size: int = None,
+                 embedding_size: int = None,
+                 hidden_act: str = None,
+                 layer_norm_eps: float = None,
+                 vocab_dense_layer: Any = None,
                  **kwargs):
+        """
+        :param with_pool: 是否包含Pool部分, 必传hidden_size
+        :param with_nsp: 是否包含NSP部分
+        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, vocab_dense_layer
+        :param initializer: 初始化器
+        :param hidden_size: 隐藏层大小
+        :param embedding_size: 词嵌入大小
+        :param hidden_act: encoder和pool中的非线性激活函数
+        :param layer_norm_eps: layer norm 附加因子，避免除零
+        :param vocab_dense_layer: 用于给mlm做vocab分类的层，可训练，相当于无bias的dense
+        """
         assert with_pool or with_mlm  # 使用的话，二选其一传
         self.with_pool = with_pool
         self.with_nsp = with_nsp
@@ -325,35 +341,20 @@ class BertOutput(keras.layers.Layer):
         self.initializer = keras.initializers.TruncatedNormal(stddev=0.02) if initializer is None else initializer
 
         if self.with_pool:
-            assert "hidden_size" in kwargs
             self.pool_activation = 'tanh' if with_pool is True else with_pool
-            self.hidden_size = kwargs["hidden_size"]
+            self.hidden_size = hidden_size
 
         if self.with_mlm:
-            assert "embedding_size" in kwargs and "hidden_act" in kwargs \
-                   and "layer_norm_eps" in kwargs and "token_embeddings" in kwargs
             self.mlm_activation = 'softmax' if with_mlm is True else with_mlm
-            self.embedding_size = kwargs["embedding_size"]
-            self.hidden_act = kwargs["hidden_act"]
-            self.layer_norm_eps = kwargs["layer_norm_eps"]
-            self.token_embeddings = kwargs["token_embeddings"]
+            self.embedding_size = embedding_size
+            self.hidden_act = hidden_act
+            self.layer_norm_eps = layer_norm_eps
+            self.vocab_dense_layer = vocab_dense_layer
 
-        del kwargs["hidden_size"]
-        del kwargs["embedding_size"]
-        del kwargs["hidden_act"]
-        del kwargs["layer_norm_eps"]
-        del kwargs["token_embeddings"]
         super(BertOutput, self).__init__(**kwargs)
 
     def build(self, input_shape):
         super(BertOutput, self).build(input_shape)
-        # self.token_embeddings = Embedding(
-        #     input_dim=30522,
-        #     output_dim=768,
-        #     embeddings_initializer=keras.initializers.TruncatedNormal(stddev=0.02),
-        #     mask_zero=True,
-        #     name="embedding-token"
-        # )
         if self.with_pool:
             self.pooler = keras.layers.Lambda(lambda x: x[:, 0], name=f"{self.name}-pooler")
             self.pooler_dense = keras.layers.Dense(units=self.hidden_size, activation=self.pool_activation,
@@ -367,7 +368,6 @@ class BertOutput(keras.layers.Layer):
             self.mlm_dense = keras.layers.Dense(units=self.embedding_size, activation=self.hidden_act,
                                                 kernel_initializer=self.initializer, name=f"{self.name}-mlm-dense")
             self.mlm_norm = keras.layers.LayerNormalization(epsilon=self.layer_norm_eps, name=f"{self.name}-mlm-norm")
-            # sub_outputs = kwargs["token_embeddings"](sub_outputs, mode="dense")
             self.mlm_bias = BiasAdd(name=f"{self.name}-mlm-bias")
             self.mlm_act = keras.layers.Activation(activation=self.mlm_activation, name=f"{self.name}-mlm-activation")
 
@@ -384,7 +384,7 @@ class BertOutput(keras.layers.Layer):
         if self.with_mlm:
             sub_outputs = self.mlm_dense(inputs)
             sub_outputs = self.mlm_norm(sub_outputs)
-            sub_outputs = self.token_embeddings(sub_outputs, mode="dense")
+            sub_outputs = self.vocab_dense_layer(sub_outputs, mode="dense")
             sub_outputs = self.mlm_bias(sub_outputs)
             sub_outputs = self.mlm_act(sub_outputs)
             outputs.append(sub_outputs)
