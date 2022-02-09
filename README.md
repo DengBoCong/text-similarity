@@ -32,6 +32,16 @@ TensorFlow
 ### TF-IDF
 
 ```python
+# Example
+# Sklearn version
+from examples.run_tfidf_sklearn import actuator
+actuator("./corpus/chinese/breeno/train.tsv", query1="12 23 4160 276", query2="29 23 169 1495")
+
+# Custom version
+from examples.run_tfidf import actuator
+actuator("./corpus/chinese/breeno/train.tsv", query1="12 23 4160 276", query2="29 23 169 1495")
+
+# 工具调用
 from sim.tf_idf import TFIdf
 
 tokens_list = ["这是 一个 什么 样 的 工具", "..."]
@@ -46,6 +56,11 @@ print(tf_idf.weight())  # list or numpy array
 ### BM25
 
 ```python
+# Example
+from examples.run_bm25 import actuator
+actuator("./corpus/chinese/breeno/train.tsv", query1="12 23 4160 276", query2="29 23 169 1495")
+
+# 工具调用
 from sim.bm25 import BM25
 
 tokens_list = ["这是 一个 什么 样 的 工具", "..."]
@@ -95,11 +110,13 @@ usif.fit(tokens_list=sentences, vector_list=vector)
    + [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
 
 ```python
-from sim.rnn_base import actuator
+# TensorFlow version
+from examples.tensorflow.run_siamese_rnn import actuator
+actuator("./data/config/siamse_rnn.json", execute_type="train")
 
-actuator()
-# TensorFlow version：python3 debug.py --execute_type train --type tf
-# or pytorch version：python3 debug.py --execute_type train --type torch
+# Pytorch version
+from examples.pytorch.run_siamese_rnn import actuator
+actuator("./data/config/siamse_rnn.json", execute_type="train")
 ```
 
 ### Bert Base

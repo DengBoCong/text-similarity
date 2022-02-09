@@ -55,17 +55,17 @@ def load_checkpoint(checkpoint_dir: str,
     return checkpoint_manager
 
 
-# def load_bert_weights_from_checkpoint(checkpoint_path: str, layers: list, mapping: dict):
-#     """ 根据mapping从checkpoint加载bert权重
-#     :param checkpoint_path: 检查点路径，不同于load_checkpoint中的dir
-#     :param layers: 模型的层映射名
-#     :param mapping: 权重映射表
-#     """
-#     mapping = {k: v for k, v in mapping.items() if k in layers_name}
-#
-#     weight_value_pairs = []
-#     for layer, variables in mapping.items():
-#         layer =
+def load_bert_weights_from_checkpoint(checkpoint_path: str, model: keras.Model, mapping: dict):
+    """ 根据mapping从checkpoint加载bert权重
+    :param checkpoint_path: 检查点路径，不同于load_checkpoint中的dir
+    :param model: 模型
+    :param mapping: 权重映射表
+    """
+    mapping = {k: v for k, v in mapping.items() if k in layers_name}
+
+    weight_value_pairs = []
+    # for layer, variables in mapping.items():
+    #     layer =
 
 
 # 定义相关的损失函数

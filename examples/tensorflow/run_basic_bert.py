@@ -113,6 +113,8 @@ def actuator(model_dir: str, execute_type: str, batch_size: int) -> NoReturn:
 
     bert_config = BertConfig.from_json_file(json_file_path=config_path)
     bert = bert_model(config=bert_config, batch_size=batch_size)
+    print([item.name for item in bert.trainable_weights])
+    exit(0)
 
 
     model = siamese_rnn_with_embedding(emb_dim=options["embedding_dim"], vec_dim=options["vec_dim"],
@@ -144,7 +146,7 @@ def actuator(model_dir: str, execute_type: str, batch_size: int) -> NoReturn:
 
 
 if __name__ == '__main__':
-    actuator(model_dir="./data/config/bert/chinese_wwm_L-12_H-768_A-12", execute_type="train")
+    actuator(model_dir="./data/ch/bert/chinese_wwm_L-12_H-768_A-12", execute_type="train")
 
 
 
