@@ -107,10 +107,10 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         options = json.load(file)
 
     # 这里在日志文件里面做一个执行分割
-    key = int(datetime.now().timestamp())
+    key = str(datetime.now())
     logger.info("========================{}========================".format(key))
     # 训练时保存模型配置
-    if execute_type == "train" and not save_model_config(key=str(key), model_desc="RNN Base",
+    if execute_type == "train" and not save_model_config(key=key, model_desc="RNN Base",
                                                          model_config=options, config_path=MODEL_CONFIG_FILE_PATH):
         raise EOFError("An error occurred while saving the configuration file")
 
