@@ -113,8 +113,8 @@ class BertLayer(keras.layers.Layer):
         self.bert_config = config
         self.batch_size = batch_size
         self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=0.02)
-        self.attn_name = f"{kwargs['name']}-multi-head-self-attention"
-        self.feed_forward_name = f"{kwargs['name']}-feedforward"
+        self.attn_name = "multi-head-self-attention"
+        self.feed_forward_name = "feedforward"
 
     def build(self, input_shape):
         super(BertLayer, self).build(input_shape)
@@ -178,8 +178,8 @@ def bert_model(config: BertConfig,
     :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, token_embeddings
     :param name: 模型名
     """
-    input_ids = tf.keras.Input(shape=(None,))
-    token_type_ids = tf.keras.Input(shape=(None,))
+    input_ids = keras.Input(shape=(None,))
+    token_type_ids = keras.Input(shape=(None,))
     input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
     initializer = keras.initializers.TruncatedNormal(stddev=0.02)
 
@@ -210,7 +210,7 @@ def bert_model(config: BertConfig,
     )([input_ids, token_type_ids])
 
     for index in range(config.num_hidden_layers):
-        outputs = BertLayer(config=config, batch_size=batch_size, name=f"bert-{index}")(outputs, input_mask)
+        outputs = BertLayer(config=config, batch_size=batch_size, name=f"bert-layer-{index}")(outputs, input_mask)
 
     if add_pooling_layer:
         argument = {}
@@ -222,6 +222,7 @@ def bert_model(config: BertConfig,
             argument["layer_norm_eps"] = config.layer_norm_eps
             argument["vocab_dense_layer"] = token_embeddings
 
-        outputs = BertOutput(with_pool, with_nsp, with_mlm, initializer=initializer, **argument)(outputs)
+        outputs = BertOutput(with_pool, with_nsp, with_mlm, initializer=initializer,
+                             name="bert-output", **argument)(outputs)
 
     return keras.Model(inputs=[input_ids, token_type_ids], outputs=outputs, name=name)

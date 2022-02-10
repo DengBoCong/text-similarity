@@ -10,16 +10,42 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 from distutils.util import strtobool
+from sim.tools.tools import orthogonally_resize
 from tensorflow.python.eager import tape
 from tensorflow.python.util import nest
 from tensorflow.python.util import tf_inspect
 from typing import Any
+from typing import NoReturn
 
 # 是否启动重计算
 do_recompute = strtobool(os.environ.get('RECOMPUTE', '0'))
+
+
+def load_embeddings(embeddings: np.ndarray, keep_tokens: list = None, compound_tokens: list = None) -> Any:
+    """给加载与训练权重时，token不一致进行额外处理用
+    :param embeddings: 原全量embedding
+    :param keep_tokens: 要保留的词ID列表
+    :param compound_tokens: 扩展Embedding
+    """
+    if keep_tokens is not None:
+        embeddings = tf.gather(params=embeddings, indices=keep_tokens)
+
+    if compound_tokens is not None:
+        ext_embeddings = []
+        for item in compound_tokens:
+            if isinstance(item, list):
+                item = (item, [1] * len(item))
+
+            ext_embeddings.append(np.average(tf.gather(embeddings, item[0]), 0, item[1]))
+
+        embeddings = np.concatenate(arrays=[embeddings, ext_embeddings], axis=0)
+
+    return embeddings
 
 
 def load_checkpoint(checkpoint_dir: str,
@@ -55,17 +81,46 @@ def load_checkpoint(checkpoint_dir: str,
     return checkpoint_manager
 
 
-def load_bert_weights_from_checkpoint(checkpoint_path: str, model: keras.Model, mapping: dict):
+def load_bert_weights_from_checkpoint(checkpoint: Any, model: keras.Model, mapping: dict) -> NoReturn:
     """ 根据mapping从checkpoint加载bert权重
-    :param checkpoint_path: 检查点路径，不同于load_checkpoint中的dir
+    :param checkpoint: 检查点，str/dict
     :param model: 模型
     :param mapping: 权重映射表
     """
-    mapping = {k: v for k, v in mapping.items() if k in layers_name}
+    weight_value_pairs, weights, values = [], [], []
+    for trainable_weight in model.trainable_weights:
+        try:
+            weight_name = trainable_weight.name.split(":")[0]
+            if weight_name not in mapping:
+                continue
 
-    weight_value_pairs = []
-    # for layer, variables in mapping.items():
-    #     layer =
+            if isinstance(checkpoint, dict):
+                variable = checkpoint[mapping[weight_name]]
+            else:
+                variable = tf.train.load_variable(checkpoint, mapping[weight_name])
+
+            if mapping[weight_name] in [
+                "bert/embeddings/word_embeddings",
+                "cls/predictions/output_bias"
+            ]:
+                values.append(load_embeddings(variable))
+            elif mapping[weight_name] == "cls/seq_relationship/output_weights":
+                values.append(tf.transpose(a=variable, perm=[1, 0]))
+            else:
+                values.append(variable)
+            weights.append(trainable_weight)
+        except Exception as e:
+            print(f"{str(e)}, but ignored")
+
+    for weight, value in zip(weights, values):
+        if value is not None:
+            weight_shape, value_shape = weight.shape, value.shape
+            if weight_shape != value_shape:
+                value = orthogonally_resize(value, weight_shape)
+
+            weight_value_pairs.append((weight, value))
+
+    keras.backend.batch_set_value(weight_value_pairs)
 
 
 # 定义相关的损失函数

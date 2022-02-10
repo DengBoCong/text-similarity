@@ -12,6 +12,7 @@ import os
 import sys
 import logging
 from datetime import datetime
+import numpy as np
 from logging import Logger
 from typing import Any
 
@@ -192,3 +193,25 @@ def get_model_config(key: str, config_path: str) -> dict:
             return json.load(file).get(key, {})
     except Exception:
         return {}
+
+
+def orthogonally_resize(a: np.ndarray, new_shape: Any, window: int = 2) -> Any:
+    """简单的正交化缩放矩阵
+    :param a: 缩放的矩阵
+    :param new_shape: new shape
+    :param window: 缩放比例
+    """
+    assert a.ndim == len(new_shape)
+    slices, a_norm, w = [], np.linalg.norm(a), window
+    for i, (d1, d2) in enumerate(zip(a.shape, new_shape)):
+        if d1 != d2:
+            k = d2 // d1 + int(d2 % d1 != 0)
+            if k > 1:
+                assert d1 % w == 0
+                a = a.reshape(a.shape[:i] + (d1 // w, w) + a.shape[i + 1:])
+                a = np.repeat(a, k, axis=i)
+                a = a.reshape(a.shape[:i] + (d1 * k,) + a.shape[i + 2:])
+
+        slices.append(np.s_[:d2])
+    a = a[tuple(slices)]
+    return a / np.linalg.norm(a) * a_norm

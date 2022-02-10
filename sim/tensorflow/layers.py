@@ -183,13 +183,15 @@ class FeedForward(keras.layers.Layer):
                 units=self.units,
                 activation=self.activation[index],
                 use_bias=self.use_bias,
-                kernel_initializer=self.kernel_initializer
+                kernel_initializer=self.kernel_initializer,
+                name="input" if index == 0 else f"inner-dense-{index}"
             ))
 
         self.output_dense = keras.layers.Dense(
             units=input_shape[-1],
             use_bias=self.use_bias,
-            kernel_initializer=self.kernel_initializer
+            kernel_initializer=self.kernel_initializer,
+            name="output"
         )
 
     @recompute_grad
@@ -250,14 +252,14 @@ class BertSelfAttention(keras.layers.Layer):
 
     def build(self, input_shape):
         super(BertSelfAttention, self).build(input_shape)
-        self.query_dense = keras.layers.Dense(units=self.key_size * self.num_heads,
-                                              use_bias=self.use_bias, kernel_initializer=self.initializer)
-        self.key_dense = keras.layers.Dense(units=self.key_size * self.num_heads,
-                                            use_bias=self.use_bias, kernel_initializer=self.initializer)
-        self.value_dense = keras.layers.Dense(units=self.head_size * self.num_heads,
-                                              use_bias=self.use_bias, kernel_initializer=self.initializer)
+        self.query_dense = keras.layers.Dense(units=self.key_size * self.num_heads, use_bias=self.use_bias,
+                                              kernel_initializer=self.initializer, name="query")
+        self.key_dense = keras.layers.Dense(units=self.key_size * self.num_heads, use_bias=self.use_bias,
+                                            kernel_initializer=self.initializer, name="key")
+        self.value_dense = keras.layers.Dense(units=self.head_size * self.num_heads, use_bias=self.use_bias,
+                                              kernel_initializer=self.initializer, name="value")
         self.output_dense = keras.layers.Dense(units=self.hidden_size, use_bias=self.use_bias,
-                                               kernel_initializer=self.initializer)
+                                               kernel_initializer=self.initializer, name="output")
 
     def transpose_for_scores(self, input_tensor: tf.Tensor, head_size: int):
         """分拆最后一个维度到 (num_heads, depth)
@@ -356,20 +358,20 @@ class BertOutput(keras.layers.Layer):
     def build(self, input_shape):
         super(BertOutput, self).build(input_shape)
         if self.with_pool:
-            self.pooler = keras.layers.Lambda(lambda x: x[:, 0], name=f"{self.name}-pooler")
+            self.pooler = keras.layers.Lambda(lambda x: x[:, 0], name="pooler")
             self.pooler_dense = keras.layers.Dense(units=self.hidden_size, activation=self.pool_activation,
                                                    kernel_initializer=self.initializer,
-                                                   name=f"{self.name}-pooler-dense")
+                                                   name="pooler-dense")
             if self.with_nsp:
                 self.nsp_prob = keras.layers.Dense(units=2, activation="softmax", kernel_initializer=self.initializer,
-                                                   name=f"{self.name}-nsp-prob")
+                                                   name="nsp-prob")
 
         if self.with_mlm:
             self.mlm_dense = keras.layers.Dense(units=self.embedding_size, activation=self.hidden_act,
-                                                kernel_initializer=self.initializer, name=f"{self.name}-mlm-dense")
-            self.mlm_norm = keras.layers.LayerNormalization(epsilon=self.layer_norm_eps, name=f"{self.name}-mlm-norm")
-            self.mlm_bias = BiasAdd(name=f"{self.name}-mlm-bias")
-            self.mlm_act = keras.layers.Activation(activation=self.mlm_activation, name=f"{self.name}-mlm-activation")
+                                                kernel_initializer=self.initializer, name="mlm-dense")
+            self.mlm_norm = keras.layers.LayerNormalization(epsilon=self.layer_norm_eps, name="mlm-norm")
+            self.mlm_bias = BiasAdd(name="mlm-bias")
+            self.mlm_act = keras.layers.Activation(activation=self.mlm_activation, name="mlm-activation")
 
     def call(self, inputs, *args, **kwargs):
         outputs = []
@@ -388,3 +390,10 @@ class BertOutput(keras.layers.Layer):
             sub_outputs = self.mlm_bias(sub_outputs)
             sub_outputs = self.mlm_act(sub_outputs)
             outputs.append(sub_outputs)
+
+        if not outputs:
+            return outputs
+        elif len(outputs) == 1:
+            return outputs[0]
+        else:
+            return outputs
