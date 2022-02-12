@@ -89,10 +89,15 @@ def set_seed(manual_seed):
     :return: None
     """
     random.seed(manual_seed)
+    os.environ['PYTHONHASHSEED'] = str(manual_seed)
     np.random.seed(manual_seed)
     torch.manual_seed(manual_seed)
     if torch.cuda.is_available():
+        torch.cuda.manual_seed(manual_seed)
         torch.cuda.manual_seed_all(manual_seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.enabled = False
 
 
 # 定义相关的损失函数

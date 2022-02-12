@@ -104,7 +104,11 @@ def actuator(model_dir: str, execute_type: str, batch_size: int) -> NoReturn:
         units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
     )(outputs)
     model = keras.Model(inputs=bert.input, outputs=outputs)
-    print(model.summary())
+    model.summary()
+
+    # optimizer=PiecewiseLinearLearningRate(Adam(5e-5), {10000: 1, 30000: 0.1})
+    model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(2e-5), metrics=["accuracy"])
+    model.fit()
     exit(0)
 
 

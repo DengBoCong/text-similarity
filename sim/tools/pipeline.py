@@ -11,13 +11,13 @@ from __future__ import print_function
 
 import abc
 import time
+from sim.tools.data_processor.data_format import DataGenerator
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_dict_string
 from sim.tools.tools import get_logger
 from sim.tools.tools import ProgressBar
 from typing import Any
 from typing import NoReturn
-
 
 logger = get_logger(name="pipeline", file_path=RUNTIME_LOG_FILE_PATH)
 
@@ -50,22 +50,20 @@ class NormalPipeline(Pipeline):
         self.batch_size = batch_size
 
     def train(self,
-              train_file_path: str,
-              valid_file_path: str,
+              train_generator: DataGenerator,
+              valid_generator: DataGenerator,
               epochs: int,
               optimizer: Any,
               checkpoint: Any,
               checkpoint_save_freq: int,
-              datasets_generator: Any,
               history: dict = None, *args, **kwargs) -> dict:
         """ Train Module
-        :param train_file_path: 已转换为token id的训练数据文件路径
-        :param valid_file_path: 已转换为token id的验证数据文件路径
+        :param train_generator: 训练数据生成器
+        :param valid_generator: 验证数据生成器
         :param epochs: 训练周期
         :param optimizer: 优化器
         :param checkpoint: 检查点管理器
         :param checkpoint_save_freq: 检查点保存频率
-        :param datasets_generator: 数据生成器，最后一个元素必须是step数
         :param history: 用于保存训练过程中的历史指标数据
         """
         if history is None:
@@ -83,10 +81,9 @@ class NormalPipeline(Pipeline):
             if self.accuracy_metric:
                 self.accuracy_metric.reset_states()
 
-            for batch, batch_dataset in enumerate(datasets_generator(
-                    file_path=train_file_path, batch_size=self.batch_size)):
+            for batch, batch_dataset in enumerate(train_generator):
                 if batch == 0:
-                    progress_bar.reset(total=batch_dataset[-1], num=self.batch_size)
+                    progress_bar.reset(total=train_generator.steps, num=self.batch_size)
 
                 train_metrics = self._train_step(batch_dataset=batch_dataset, optimizer=optimizer, *args, **kwargs)
 
@@ -100,20 +97,15 @@ class NormalPipeline(Pipeline):
                 checkpoint.save()
 
                 logger.info("Begin valid")
-                self._valid(valid_file_path, progress_bar,
-                            datasets_generator=datasets_generator, history=history, *args, **kwargs)
+                self._valid(progress_bar, data_generator=valid_generator, history=history, *args, **kwargs)
 
         logger.info("Train end")
         self._save_model(*args, **kwargs)
         return history
 
-    def evaluate(self,
-                 valid_file_path: str,
-                 datasets_generator: Any,
-                 history=None, *args, **kwargs) -> dict:
+    def evaluate(self, data_generator: DataGenerator, history=None, *args, **kwargs) -> dict:
         """ 验证模块
-        :param valid_file_path: 验证数据文本路径
-        :param datasets_generator: 数据生成器，最后一个元素必须是step数
+        :param data_generator: 数据生成器
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
@@ -122,8 +114,7 @@ class NormalPipeline(Pipeline):
             history = {}
 
         progress_bar = ProgressBar()
-        self._valid(valid_file_path, progress_bar,
-                    datasets_generator=datasets_generator, history=history, *args, **kwargs)
+        self._valid(progress_bar, data_generator=data_generator, history=history, *args, **kwargs)
 
         logger.info("Evaluate end")
         return history
@@ -137,14 +128,12 @@ class NormalPipeline(Pipeline):
         pass
 
     def _valid(self,
-               valid_file_path: str,
                progress_bar: ProgressBar,
-               datasets_generator: Any,
+               data_generator: DataGenerator,
                history: dict = None, *args, **kwargs) -> NoReturn:
         """ 验证模块
-        :param valid_file_path: 验证数据文本路径
         :param progress_bar: 进度工具
-        :param datasets_generator: 数据生成器，最后一个元素必须是step数
+        :param data_generator: 数据生成器，最后一个元素必须是step数
         :param history: 用于保存evaluate过程中的历史指标数据
         :return: 返回历史指标数据
         """
@@ -156,12 +145,11 @@ class NormalPipeline(Pipeline):
         if self.accuracy_metric:
             self.accuracy_metric.reset_states()
 
-        for valid_batch, valid_batch_dataset in enumerate(datasets_generator(
-                file_path=valid_file_path, batch_size=self.batch_size)):
+        for valid_batch, batch_dataset in enumerate(data_generator):
             if valid_batch == 0:
-                progress_bar.reset(total=valid_batch_dataset[-1], num=self.batch_size)
+                progress_bar.reset(total=data_generator.steps, num=self.batch_size)
 
-            valid_metrics = self._valid_step(dataset=valid_batch_dataset, *args, **kwargs)
+            valid_metrics = self._valid_step(batch_dataset=batch_dataset, *args, **kwargs)
 
             for key, value in valid_metrics.items():
                 history[key].append(value)
@@ -169,9 +157,9 @@ class NormalPipeline(Pipeline):
         progress_bar.done(step_time=time.time() - valid_start_time)
 
     @abc.abstractmethod
-    def _train_step(self, batch_dataset: tuple, optimizer: Any, *args, **kwargs) -> dict:
+    def _train_step(self, batch_dataset: dict, optimizer: Any, *args, **kwargs) -> dict:
         """该方法用于定于训练步中，模型实际训练的核心代码（在train方法中使用）
-            batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
+            batch_dataset输出必须满足输出dict
         Note:
             a): 返回所得指标字典
             b): batch_dataset、optimizer为模型训练必需
@@ -180,9 +168,9 @@ class NormalPipeline(Pipeline):
         raise NotImplementedError("Must be implemented in subclasses.")
 
     @abc.abstractmethod
-    def _valid_step(self, dataset: tuple, *args, **kwargs) -> dict:
+    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
         """ 该方法用于定义验证模型逻辑
-            batch_dataset=[input1,input2,label,steps]，输出必须满足输出dict
+            batch_dataset输出必须满足输出dict
         Note:
             a): 返回所得指标字典
             b): dataset为模型验证必需

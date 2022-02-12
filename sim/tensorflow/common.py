@@ -9,9 +9,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-
 import numpy as np
+import os
+import random
 import tensorflow as tf
 import tensorflow.keras as keras
 from distutils.util import strtobool
@@ -24,6 +24,16 @@ from typing import NoReturn
 
 # 是否启动重计算
 do_recompute = strtobool(os.environ.get('RECOMPUTE', '0'))
+
+
+def set_seed(manual_seed: int):
+    """固定随机种子
+    :param manual_seed: 随机种子
+    """
+    random.seed(manual_seed)
+    os.environ['PYTHONHASHSEED'] = str(manual_seed)
+    np.random.seed(manual_seed)
+    tf.random.set_seed(manual_seed)
 
 
 def load_embeddings(embeddings: np.ndarray, keep_tokens: list = None, compound_tokens: list = None) -> Any:

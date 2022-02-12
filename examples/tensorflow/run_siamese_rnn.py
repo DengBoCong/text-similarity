@@ -10,17 +10,15 @@ from __future__ import division
 from __future__ import print_function
 
 import json
-import numpy as np
-import os
-import random
 import tensorflow as tf
 from datetime import datetime
 from sim.tensorflow.modeling_siamese_rnn import siamese_rnn_with_embedding
-from sim.tools.data_processor.process_plain_text import datasets_generator
+from sim.tools.data_processor.data_format import NormalDataGenerator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tensorflow.common import load_checkpoint
+from sim.tensorflow.common import set_seed
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
 from sim.tools.pipeline import NormalPipeline
@@ -44,24 +42,22 @@ class TextPairPipeline(NormalPipeline):
         """
         super(TextPairPipeline, self).__init__(model, loss_metric, accuracy_metric, batch_size)
 
-    def _train_step(self, batch_dataset: tuple, optimizer: tf.keras.optimizers.Optimizer, *args, **kwargs) -> dict:
+    def _train_step(self, batch_dataset: dict, optimizer: tf.keras.optimizers.Optimizer, *args, **kwargs) -> dict:
         """ 训练步
         :param batch_dataset: 训练步的当前batch数据
         :param optimizer: 优化器
         :return: 返回所得指标字典
         """
-        inputs1, inputs2, labels, _ = batch_dataset
-
         with tf.GradientTape() as tape:
-            outputs1, outputs2 = self.model[0](inputs=[inputs1, inputs2])
+            outputs1, outputs2 = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
 
             diff = tf.reduce_sum(tf.abs(tf.math.subtract(outputs1, outputs2)), axis=1)
             sim = tf.clip_by_value(tf.exp(-1.0 * diff), 1e-7, 1.0 - 1e-7)
-            pred = tf.square(tf.math.subtract(sim, labels))
+            pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
             loss = tf.reduce_sum(pred)
 
         self.loss_metric.update_state(loss)
-        self.accuracy_metric.update_state(labels, sim)
+        self.accuracy_metric.update_state(batch_dataset["labels"], sim)
 
         variables = self.model[0].trainable_variables
         gradients = tape.gradient(target=loss, sources=variables)
@@ -69,20 +65,19 @@ class TextPairPipeline(NormalPipeline):
 
         return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
 
-    def _valid_step(self, dataset: tuple, *args, **kwargs) -> dict:
+    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
         """ 验证步
-        :param dataset: 训练步的当前batch数据
+        :param batch_dataset: 验证步的当前batch数据
         """
-        inputs1, inputs2, labels, _ = dataset
-        outputs1, outputs2 = self.model[0](inputs=[inputs1, inputs2])
+        outputs1, outputs2 = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
 
         diff = tf.reduce_sum(tf.abs(tf.math.subtract(outputs1, outputs2)), axis=1)
         sim = tf.clip_by_value(tf.exp(-1.0 * diff), 1e-7, 1.0 - 1e-7)
-        pred = tf.square(tf.math.subtract(sim, labels))
+        pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
         loss = tf.reduce_sum(pred)
 
         self.loss_metric.update_state(loss)
-        self.accuracy_metric.update_state(labels, sim)
+        self.accuracy_metric.update_state(batch_dataset["labels"], sim)
 
         return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
 
@@ -122,6 +117,11 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         text_pair_to_token_id(file_path=options["raw_valid_data_path"],
                               save_path=options["valid_data_path"], pad_max_len=options["vec_dim"], tokenizer=tokenizer)
     else:
+        with open(options["train_data_path"], "r", encoding="utf-8") as train_file, open(
+                options["valid_data_path"], "r", encoding="utf-8") as valid_file:
+            train_generator = NormalDataGenerator(train_file.readlines(), options["batch_size"])
+            valid_generator = NormalDataGenerator(valid_file.readlines(), options["batch_size"])
+
         model = siamese_rnn_with_embedding(emb_dim=options["embedding_dim"], vec_dim=options["vec_dim"],
                                            vocab_size=options["vocab_size"], units=options["units"],
                                            cell_type=options["rnn"], share=options["share"])
@@ -134,16 +134,13 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
         if execute_type == "train":
-            random.seed(options["seed"])
-            os.environ['PYTHONHASHSEED'] = str(options["seed"])
-            np.random.seed(options["seed"])
-            tf.random.set_seed(options["seed"])
-
+            set_seed(manual_seed=options["seed"])
             optimizer = tf.optimizers.Adam(name="optimizer")
-            pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
-                           optimizer, checkpoint_manager, options["checkpoint_save_freq"], datasets_generator, history)
+
+            pipeline.train(train_generator, valid_generator, options["epochs"], optimizer,
+                           checkpoint_manager, options["checkpoint_save_freq"], history)
         elif execute_type == "evaluate":
-            pipeline.evaluate(options["valid_data_path"], datasets_generator, history)
+            pipeline.evaluate(valid_generator, history)
         elif execute_type == "inference":
             pass
         else:
