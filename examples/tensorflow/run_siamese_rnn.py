@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import json
 import tensorflow as tf
+import tensorflow.keras as keras
 from datetime import datetime
 from sim.tensorflow.modeling_siamese_rnn import siamese_rnn_with_embedding
 from sim.tools.data_processor.data_format import NormalDataGenerator
@@ -31,8 +32,8 @@ logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 class TextPairPipeline(NormalPipeline):
     def __init__(self,
                  model: list,
-                 loss_metric: tf.keras.metrics.Metric,
-                 accuracy_metric: tf.keras.metrics.Metric,
+                 loss_metric: keras.metrics.Metric,
+                 accuracy_metric: keras.metrics.Metric,
                  batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
@@ -42,7 +43,7 @@ class TextPairPipeline(NormalPipeline):
         """
         super(TextPairPipeline, self).__init__(model, loss_metric, accuracy_metric, batch_size)
 
-    def _train_step(self, batch_dataset: dict, optimizer: tf.keras.optimizers.Optimizer, *args, **kwargs) -> dict:
+    def _train_step(self, batch_dataset: dict, optimizer: keras.optimizers.Optimizer, *args, **kwargs) -> dict:
         """ 训练步
         :param batch_dataset: 训练步的当前batch数据
         :param optimizer: 优化器
@@ -128,14 +129,14 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
                                              checkpoint_save_size=options["checkpoint_save_size"], model=model)
 
-        loss_metric = tf.keras.metrics.Mean()
-        accuracy_metric = tf.keras.metrics.BinaryAccuracy()
+        loss_metric = keras.metrics.Mean()
+        accuracy_metric = keras.metrics.BinaryAccuracy()
         pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options["batch_size"])
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=options["seed"])
-            optimizer = tf.optimizers.Adam(name="optimizer")
+            optimizer = keras.optimizers.Adam(name="optimizer")
 
             pipeline.train(train_generator, valid_generator, options["epochs"], optimizer,
                            checkpoint_manager, options["checkpoint_save_freq"], history)

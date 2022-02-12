@@ -23,6 +23,7 @@ import uuid
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tokenizer import pad_sequences
 from sim.tools.tokenizer import Segment
+from sim.tools.tokenizer import BertTokenizer as CustomBertTokenizer
 from sim.tools.tokenizer import Tokenizer
 from sim.tools.tools import get_logger
 from tokenizers.implementations.bert_wordpiece import BertWordPieceTokenizer
@@ -63,10 +64,11 @@ def text_pair_to_token_id(file_path: str,
 
     if seg_model:
         segment = Segment(model=seg_model)
-    with open(file_path, "r", encoding="utf-8") as raw_file, open(save_path, "a", encoding="utf-8") as save_file:
+    with open(file_path, "r", encoding="utf-8") as raw_file, open(
+            save_path, "a", encoding="utf-8") as save_file:
         for line in raw_file:
             line = line.strip().strip("\n")
-            if line == "" or len(line.split(split)) != 3:
+            if line == "":
                 continue
 
             pair = line.split(split)
@@ -75,7 +77,7 @@ def text_pair_to_token_id(file_path: str,
                 pair[1] = segment.cut(pair[1])
             text1s.append(pair[0])
             text2s.append(pair[1])
-            labels.append(pair[2])
+            labels.append(pair[2] if len(pair) == 3 else 0)
 
             count += 1
             if count % print_count == 0:
@@ -90,11 +92,10 @@ def text_pair_to_token_id(file_path: str,
         text1s = tokenizer.texts_to_sequences(texts=text1s)
         text2s = tokenizer.texts_to_sequences(texts=text2s)
 
-        if pad_max_len:
-            text1s = pad_sequences(sequences=text1s, max_len=pad_max_len,
-                                   padding=padding, truncating=truncating, value=value)
-            text2s = pad_sequences(sequences=text2s, max_len=pad_max_len,
-                                   padding=padding, truncating=truncating, value=value)
+        text1s = pad_sequences(sequences=text1s, max_len=pad_max_len,
+                               padding=padding, truncating=truncating, value=value)
+        text2s = pad_sequences(sequences=text2s, max_len=pad_max_len,
+                               padding=padding, truncating=truncating, value=value)
 
         logger.info("Begin write in")
         for index, (text1, text2, label) in enumerate(zip(text1s, text2s, labels)):
@@ -109,28 +110,68 @@ def text_pair_to_token_id(file_path: str,
     return tokenizer
 
 
-def datasets_generator(file_path: str, batch_size: int, split: str = "\t"):
-    """ Datasets generator
-    :param file_path: 已分词的数据路径
-    :param batch_size: batch size
-    :param split: token pair的分隔符
-    :return: None
+def text_to_token_id_for_bert(file_path: str,
+                              save_path: str,
+                              split: str = "\t",
+                              pad_max_len: int = None,
+                              tokenizer: BertTokenizer = None,
+                              token_dict: str = None,
+                              padding: str = 'post',
+                              truncating: str = 'post',
+                              value: int = 0,
+                              print_count: int = 1000) -> NoReturn:
+    """用于bert将Text转换为token id
+    :param file_path: 未处理的文本数据路径，文本格式: <text1><split><text2><split><label>
+    :param save_path: 保存处理后的数据路径
+    :param split: text pair的分隔符
+    :param pad_max_len: padding size
+    :param tokenizer: 分词器
+    :param token_dict: 映射字典或其文件路径
+    :param padding: 填充类型，pre在前，post在后
+    :param truncating: 截断类型，pre在前，post在后
+    :param value: 填充值类型，float或者是string
+    :param print_count: 处理print_count数量数据打印日志
     """
-    with open(file_path, "r", encoding="utf-8") as file:
-        datasets = file.readlines()
+    if not os.path.exists(file_path):
+        raise FileNotFoundError("Raw text file not found")
 
-        np.random.shuffle(datasets)
+    if not tokenizer:
+        tokenizer = CustomBertTokenizer(token_dict=token_dict, do_lower_case=True)
 
-        steps = len(datasets) // batch_size
-        for i in range(steps):
-            input1, input2, label = list(), list(), list()
-            for sample in datasets[i:i + batch_size]:
-                sample = sample.split(split)
-                input1.append(list(map(int, sample[0].split(" "))))
-                input2.append(list(map(int, sample[1].split(" "))))
-                label.append(int(sample[2]))
+    batch_token_ids, batch_segment_ids, batch_labels, count = [], [], [], 0
+    with open(file_path, "r", encoding="utf-8") as raw_file, open(
+            save_path, "a", encoding="utf-8") as save_file:
+        for line in raw_file:
+            line = line.strip().strip("\n")
+            if line == "":
+                continue
 
-            yield np.asarray(input1), np.asarray(input2), np.asarray(label), steps
+            pair = line.split(split)
+            token_ids, segment_ids = tokenizer.encode(first_text=pair[0], second_text=pair[1], max_len=pad_max_len)
+            batch_token_ids.append(token_ids)
+            batch_segment_ids.append(segment_ids)
+            batch_labels.append(pair[2] if len(pair) == 3 else 0)
+
+            count += 1
+            if count % print_count == 0:
+                print("\r{} text-pairs processed".format(count), end="", flush=True)
+
+        logger.info("{} text-pairs processed".format(count))
+
+        batch_token_ids = pad_sequences(sequences=batch_token_ids, max_len=pad_max_len,
+                                        padding=padding, truncating=truncating, value=value)
+        batch_segment_ids = pad_sequences(sequences=batch_segment_ids, max_len=pad_max_len,
+                                          padding=padding, truncating=truncating, value=value)
+
+        logger.info("Begin write in")
+        for index, (token_ids, segment_ids, labels) in enumerate(zip(batch_token_ids, batch_segment_ids, batch_labels)):
+            save_file.write("{}{}{}{}{}\n".format(" ".join(map(str, token_ids)),
+                                                  split, " ".join(map(str, segment_ids)), split, labels))
+
+            if index % print_count == 0:
+                print("\r{} text-pairs processed".format(index), end="", flush=True)
+
+        logger.info("Finish write in")
 
 
 def convert_sample_to_json(file_path: str,

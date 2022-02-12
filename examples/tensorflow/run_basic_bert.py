@@ -16,12 +16,18 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from datetime import datetime
 from sim.tensorflow.common import load_bert_weights_from_checkpoint
+from sim.tensorflow.common import load_checkpoint
+from sim.tensorflow.common import set_seed
 from sim.tensorflow.modeling_bert import bert_model
 from sim.tools import BertConfig
+from sim.tools.data_processor.data_format import NormalDataGenerator
+from sim.tools.data_processor.process_plain_text import text_to_token_id_for_bert
+from sim.tools.pipeline import NormalPipeline
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
+from typing import Any
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
@@ -74,11 +80,68 @@ def variable_mapping(num_hidden_layers):
     return mapping
 
 
-def actuator(model_dir: str, execute_type: str, batch_size: int) -> NoReturn:
+class TextPairPipeline(NormalPipeline):
+    def __init__(self,
+                 model: list,
+                 loss_metric: keras.metrics.Metric,
+                 accuracy_metric: keras.metrics.Metric,
+                 batch_size: int):
+        """
+        :param model: 模型相关组件，用于train_step和valid_step中自定义使用
+        :param loss_metric: 损失计算器，必传指标
+        :param accuracy_metric: 精度计算器，必传指标
+        :param batch_size: batch size
+        """
+        super(TextPairPipeline, self).__init__(model, loss_metric, accuracy_metric, batch_size)
+
+    def _train_step(self, batch_dataset: dict, optimizer: keras.optimizers.Optimizer, *args, **kwargs) -> dict:
+        """ 训练步
+        :param batch_dataset: 训练步的当前batch数据
+        :param optimizer: 优化器
+        :return: 返回所得指标字典
+        """
+        with tf.GradientTape() as tape:
+            outputs = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
+            loss = keras.losses.SparseCategoricalCrossentropy()(batch_dataset["labels"], outputs)
+
+        accuracy = keras.metrics.SparseCategoricalAccuracy()([[label] for label in batch_dataset["labels"]], outputs)
+        self.loss_metric.update_state(loss)
+        self.accuracy_metric.update_state(accuracy)
+
+        variables = self.model[0].trainable_variables
+        gradients = tape.gradient(target=loss, sources=variables)
+        optimizer.apply_gradients(zip(gradients, variables))
+
+        return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
+
+    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
+        """ 验证步
+        :param batch_dataset: 验证步的当前batch数据
+        """
+        outputs = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
+        loss = keras.losses.SparseCategoricalCrossentropy()(batch_dataset["labels"], outputs)
+        accuracy = keras.metrics.SparseCategoricalAccuracy()([[label] for label in batch_dataset["labels"]], outputs)
+        self.loss_metric.update_state(loss)
+        self.accuracy_metric.update_state(accuracy)
+
+        return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
+
+    def inference(self, query1: str, query2: str) -> Any:
+        """ 推断模块
+        :param query1: 文本1
+        :param query2: 文本2
+        :return:
+        """
+        pass
+
+    def _save_model(self, *args, **kwargs) -> NoReturn:
+        pass
+
+
+def actuator(model_dir: str, execute_type: str) -> NoReturn:
     """
     :param model_dir: 预训练模型目录
     :param execute_type: 执行类型
-    :param batch_size: batch size
     """
     config_path = os.path.join(model_dir, "bert_config.json")
     checkpoint_path = os.path.join(model_dir, "bert_model.ckpt")
@@ -95,57 +158,50 @@ def actuator(model_dir: str, execute_type: str, batch_size: int) -> NoReturn:
                                                          model_config=options, config_path=MODEL_CONFIG_FILE_PATH):
         raise EOFError("An error occurred while saving the configuration file")
 
-    bert_config = BertConfig.from_json_file(json_file_path=config_path)
-    bert = bert_model(config=bert_config, batch_size=batch_size)
-    load_bert_weights_from_checkpoint(checkpoint_path, bert, variable_mapping(bert_config.num_hidden_layers))
-
-    outputs = keras.layers.Dropout(rate=0.1)(bert.output)
-    outputs = keras.layers.Dense(
-        units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
-    )(outputs)
-    model = keras.Model(inputs=bert.input, outputs=outputs)
-    model.summary()
-
-    # optimizer=PiecewiseLinearLearningRate(Adam(5e-5), {10000: 1, 30000: 0.1})
-    model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(2e-5), metrics=["accuracy"])
-    model.fit()
-    exit(0)
-
-
-    model = siamese_rnn_with_embedding(emb_dim=options["embedding_dim"], vec_dim=options["vec_dim"],
-                                       vocab_size=options["vocab_size"], units=options["units"],
-                                       cell_type=options["rnn"], share=options["share"])
-    checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
-                                         checkpoint_save_size=options["checkpoint_save_size"], model=model)
-
-    loss_metric = tf.keras.metrics.Mean()
-    accuracy_metric = tf.keras.metrics.BinaryAccuracy()
-    pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options["batch_size"])
-    history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
-
-    if execute_type == "train":
-        random.seed(options["seed"])
-        os.environ['PYTHONHASHSEED'] = str(options["seed"])
-        np.random.seed(options["seed"])
-        tf.random.set_seed(options["seed"])
-
-        optimizer = tf.optimizers.Adam(name="optimizer")
-        pipeline.train(options["train_data_path"], options["valid_data_path"], options["epochs"],
-                       optimizer, checkpoint_manager, options["checkpoint_save_freq"], datasets_generator, history)
-    elif execute_type == "evaluate":
-        pipeline.evaluate(options["valid_data_path"], datasets_generator, history)
-    elif execute_type == "inference":
-        pass
+    if execute_type == "preprocess":
+        logger.info("Begin preprocess train data")
+        text_to_token_id_for_bert(file_path=options["raw_train_data_path"], save_path=options["train_data_path"],
+                                  pad_max_len=options["pad_max_len"], token_dict=dict_path)
+        logger.info("Begin preprocess valid data")
+        text_to_token_id_for_bert(file_path=options["raw_valid_data_path"], save_path=options["valid_data_path"],
+                                  pad_max_len=options["pad_max_len"], token_dict=dict_path)
     else:
-        raise ValueError("execute_type error")
+        with open(options["train_data_path"], "r", encoding="utf-8") as train_file, open(
+                options["valid_data_path"], "r", encoding="utf-8") as valid_file:
+            train_generator = NormalDataGenerator(train_file.readlines(), options["batch_size"])
+            valid_generator = NormalDataGenerator(valid_file.readlines(), options["batch_size"])
+
+        bert_config = BertConfig.from_json_file(json_file_path=config_path)
+        bert = bert_model(config=bert_config, batch_size=options["batch_size"])
+        load_bert_weights_from_checkpoint(checkpoint_path, bert, variable_mapping(bert_config.num_hidden_layers))
+
+        outputs = keras.layers.Dropout(rate=0.1)(bert.output)
+        outputs = keras.layers.Dense(
+            units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
+        )(outputs)
+        model = keras.Model(inputs=bert.input, outputs=outputs)
+
+        checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
+                                             checkpoint_save_size=options["checkpoint_save_size"], model=model)
+
+        loss_metric = keras.metrics.Mean()
+        accuracy_metric = keras.metrics.Mean()
+        pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options["batch_size"])
+        history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
+
+        if execute_type == "train":
+            set_seed(manual_seed=options["seed"])
+            optimizer = keras.optimizers.Adam(learning_rate=2e-5)
+
+            pipeline.train(train_generator, valid_generator, options["epochs"], optimizer,
+                           checkpoint_manager, options["checkpoint_save_freq"], history)
+        elif execute_type == "evaluate":
+            pipeline.evaluate(valid_generator, history)
+        elif execute_type == "inference":
+            pass
+        else:
+            raise ValueError("execute_type error")
 
 
 if __name__ == '__main__':
     actuator(model_dir="./data/ch/bert/chinese_wwm_L-12_H-768_A-12", execute_type="train")
-
-
-
-
-
-
-

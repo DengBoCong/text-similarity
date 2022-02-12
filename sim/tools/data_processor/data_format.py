@@ -107,6 +107,6 @@ class NormalDataGenerator(DataGenerator):
                 sample = sample.split("\t")
                 input1.append(list(map(int, sample[0].split(" "))))
                 input2.append(list(map(int, sample[1].split(" "))))
-                label.append(int(sample[2]))
+                label.append(int(sample[2]) if len(sample) == 3 else 0)
 
             yield {"inputs1": np.asarray(input1), "inputs2": np.asarray(input2), "labels": np.asarray(label)}
