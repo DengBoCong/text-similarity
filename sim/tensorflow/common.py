@@ -154,7 +154,7 @@ def scaled_dot_product_attention(query: tf.Tensor,
                                  key: tf.Tensor,
                                  value: tf.Tensor,
                                  batch_size: int,
-                                 hidden_size: int,
+                                 num_heads: int,
                                  attention_head_size: int,
                                  dropout: float,
                                  mask: Any = None) -> tuple:
@@ -163,7 +163,7 @@ def scaled_dot_product_attention(query: tf.Tensor,
     :param key: (..., seq_len_k, depth)
     :param value: (..., seq_len_v, depth_v)
     :param batch_size: batch size
-    :param hidden_size: hidden size
+    :param num_heads: head num
     :param attention_head_size: 分头之后维度大小
     :param dropout: 注意力dropout
     :param mask: float, (..., seq_len_q, seq_len_k)
@@ -179,7 +179,7 @@ def scaled_dot_product_attention(query: tf.Tensor,
 
     context_layer = tf.matmul(a=attention_weights, b=value)
     context_layer = tf.transpose(a=context_layer, perm=[0, 2, 1, 3])
-    context_layer = tf.reshape(tensor=context_layer, shape=(batch_size, -1, hidden_size))
+    context_layer = tf.reshape(tensor=context_layer, shape=(batch_size, -1, attention_head_size * num_heads))
 
     return context_layer, attention_weights
 

@@ -21,6 +21,7 @@
    + SIF/uSIF
    + RNN Base
    + Bert Base
+   + Albert
 
 # Dependency
 ```shell
@@ -125,8 +126,19 @@ actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train")
 # Pytorch version
 ```
 
+### Albert
+
+```python
+# TensorFlow version
+from examples.tensorflow.run_albert import actuator
+actuator(model_dir="./data/albert_small_zh_google", execute_type="train")
+
+# Pytorch version
+```
+
 # Reference
 + [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
 + [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
 + [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
 + [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
++ [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)

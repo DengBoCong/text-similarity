@@ -285,7 +285,7 @@ class BertSelfAttention(keras.layers.Layer):
             key=key,
             value=value,
             batch_size=self.batch_size,
-            hidden_size=self.hidden_size,
+            num_heads=self.num_heads,
             attention_head_size=self.head_size,
             dropout=self.attention_dropout,
             mask=mask
@@ -336,7 +336,6 @@ class BertOutput(keras.layers.Layer):
         :param layer_norm_eps: layer norm 附加因子，避免除零
         :param vocab_dense_layer: 用于给mlm做vocab分类的层，可训练，相当于无bias的dense
         """
-        assert with_pool or with_mlm  # 使用的话，二选其一传
         self.with_pool = with_pool
         self.with_nsp = with_nsp
         self.with_mlm = with_mlm
@@ -392,7 +391,7 @@ class BertOutput(keras.layers.Layer):
             outputs.append(sub_outputs)
 
         if not outputs:
-            return outputs
+            return inputs
         elif len(outputs) == 1:
             return outputs[0]
         else:
