@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import json
+import torch
 import torch.optim
 from datetime import datetime
 from sim.pytorch.modeling_siamese_rnn import SiameseRnnWithEmbedding
@@ -29,14 +30,12 @@ logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class TextPairPipeline(NormalPipeline):
-    def __init__(self, model: list, loss_metric: Any, accuracy_metric: Any, batch_size: int):
+    def __init__(self, model: list, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
-        :param loss_metric: 损失计算器，必传指标
-        :param accuracy_metric: 精度计算器，必传指标
         :param batch_size: batch size
         """
-        super(TextPairPipeline, self).__init__(model, loss_metric, accuracy_metric, batch_size)
+        super(TextPairPipeline, self).__init__(model, batch_size)
 
     def _train_step(self, batch_dataset: dict, optimizer: torch.optim.Optimizer, *args, **kwargs) -> dict:
         """ 训练步
@@ -48,18 +47,23 @@ class TextPairPipeline(NormalPipeline):
         inputs2 = torch.from_numpy(batch_dataset["inputs2"]).permute(1, 0)
         labels = torch.from_numpy(batch_dataset["labels"])
 
-        optimizer.zero_grad()
         state1, state2 = self.model[0](inputs1, inputs2)
 
         diff = torch.sum(torch.abs(torch.sub(state1, state2)), dim=1)
         sim = torch.exp(-1.0 * diff)
         pred = torch.square(torch.sub(sim, labels))
         loss = torch.sum(pred)
+        accuracy = 0.
+        for label, i in zip(labels, sim):
+            sim_value = 0. if i < 0.5 else 1.
+            accuracy += 1. if label == sim_value else 0.
 
+        optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.model[0].parameters(), 1.)
         optimizer.step()
 
-        return {"train_loss": torch.div(loss, self.batch_size), "train_accuracy": 0}
+        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy / self.batch_size}
 
     def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
         """ 验证步
@@ -77,7 +81,12 @@ class TextPairPipeline(NormalPipeline):
             pred = torch.square(torch.sub(sim, labels))
             loss = torch.sum(pred)
 
-        return {"train_loss": torch.div(loss, self.batch_size), "train_accuracy": 0}
+            accuracy = 0.
+            for label, i in zip(labels, sim):
+                sim_value = 0. if i < 0.5 else 1.
+                accuracy += 1. if label == sim_value else 0.
+
+        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
 
     def inference(self, query1: str, query2: str) -> Any:
         """ 推断模块
@@ -125,12 +134,12 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
                                         num_layers=options["num_layers"], rnn=options["rnn"],
                                         share=options["share"], if_bi=options["bi"])
 
-        pipeline = TextPairPipeline([model], None, None, options["batch_size"])
+        pipeline = TextPairPipeline([model], options["batch_size"])
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=options["seed"])
-            optimizer = torch.optim.Adam([{"params": model.parameters(), "lr": 1e-3}])
+            optimizer = torch.optim.Adam(params=model.parameters())
             checkpoint = Checkpoint(checkpoint_dir=options["checkpoint_dir"], optimizer=optimizer, model=model)
 
             pipeline.train(train_generator, valid_generator, options["epochs"], optimizer,

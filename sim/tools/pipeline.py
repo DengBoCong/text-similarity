@@ -37,16 +37,12 @@ class Pipeline(abc.ABC):
 
 
 class NormalPipeline(Pipeline):
-    def __init__(self, model: list, loss_metric: Any, accuracy_metric: Any, batch_size: int):
+    def __init__(self, model: list, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
-        :param loss_metric: 损失计算器，必传指标
-        :param accuracy_metric: 精度计算器，必传指标
         :param batch_size: batch size
         """
         self.model = model
-        self.loss_metric = loss_metric
-        self.accuracy_metric = accuracy_metric
         self.batch_size = batch_size
 
     def train(self,
@@ -76,10 +72,6 @@ class NormalPipeline(Pipeline):
             logger.info("Epoch {}/{}".format(epoch + 1, epochs))
 
             start_time = time.time()
-            if self.loss_metric:
-                self.loss_metric.reset_states()
-            if self.accuracy_metric:
-                self.accuracy_metric.reset_states()
 
             for batch, batch_dataset in enumerate(train_generator):
                 if batch == 0:
@@ -87,8 +79,11 @@ class NormalPipeline(Pipeline):
 
                 train_metrics = self._train_step(batch_dataset=batch_dataset, optimizer=optimizer, *args, **kwargs)
 
+                metrics = {}
                 for key, value in train_metrics.items():
                     history[key].append(value)
+                    metrics[f"avg_{key}"] = sum(history[key]) / len(history[key])
+                train_metrics.update(metrics)
                 progress_bar(current=batch + 1, metrics=get_dict_string(data=train_metrics))
 
             logger.info(progress_bar.done(step_time=time.time() - start_time))
@@ -140,10 +135,6 @@ class NormalPipeline(Pipeline):
         logger.info("Begin evaluate")
 
         valid_start_time = time.time()
-        if self.loss_metric:
-            self.loss_metric.reset_states()
-        if self.accuracy_metric:
-            self.accuracy_metric.reset_states()
 
         for valid_batch, batch_dataset in enumerate(data_generator):
             if valid_batch == 0:
@@ -151,8 +142,13 @@ class NormalPipeline(Pipeline):
 
             valid_metrics = self._valid_step(batch_dataset=batch_dataset, *args, **kwargs)
 
+            metrics = {}
             for key, value in valid_metrics.items():
                 history[key].append(value)
+                metrics[f"avg_{key}"] = sum(history[key]) / len(history[key])
+            valid_metrics.update(metrics)
+
+            progress_bar(current=valid_batch + 1, metrics=get_dict_string(data=valid_metrics))
 
         progress_bar.done(step_time=time.time() - valid_start_time)
 

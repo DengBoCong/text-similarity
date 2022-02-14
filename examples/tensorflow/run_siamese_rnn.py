@@ -32,16 +32,12 @@ logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 class TextPairPipeline(NormalPipeline):
     def __init__(self,
                  model: list,
-                 loss_metric: keras.metrics.Metric,
-                 accuracy_metric: keras.metrics.Metric,
                  batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
-        :param loss_metric: 损失计算器，必传指标
-        :param accuracy_metric: 精度计算器，必传指标
         :param batch_size: batch size
         """
-        super(TextPairPipeline, self).__init__(model, loss_metric, accuracy_metric, batch_size)
+        super(TextPairPipeline, self).__init__(model, batch_size)
 
     def _train_step(self, batch_dataset: dict, optimizer: keras.optimizers.Optimizer, *args, **kwargs) -> dict:
         """ 训练步
@@ -57,14 +53,13 @@ class TextPairPipeline(NormalPipeline):
             pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
             loss = tf.reduce_sum(pred)
 
-        self.loss_metric.update_state(loss)
-        self.accuracy_metric.update_state(batch_dataset["labels"], sim)
+        accuracy = keras.metrics.BinaryAccuracy()(batch_dataset["labels"], sim)
 
         variables = self.model[0].trainable_variables
         gradients = tape.gradient(target=loss, sources=variables)
         optimizer.apply_gradients(zip(gradients, variables))
 
-        return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
+        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
 
     def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
         """ 验证步
@@ -76,11 +71,9 @@ class TextPairPipeline(NormalPipeline):
         sim = tf.clip_by_value(tf.exp(-1.0 * diff), 1e-7, 1.0 - 1e-7)
         pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
         loss = tf.reduce_sum(pred)
+        accuracy = keras.metrics.BinaryAccuracy()(batch_dataset["labels"], sim)
 
-        self.loss_metric.update_state(loss)
-        self.accuracy_metric.update_state(batch_dataset["labels"], sim)
-
-        return {"train_loss": self.loss_metric.result(), "train_accuracy": self.accuracy_metric.result()}
+        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
 
     def inference(self, query1: str, query2: str) -> Any:
         """ 推断模块
@@ -129,9 +122,7 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
                                              checkpoint_save_size=options["checkpoint_save_size"], model=model)
 
-        loss_metric = keras.metrics.Mean()
-        accuracy_metric = keras.metrics.BinaryAccuracy()
-        pipeline = TextPairPipeline([model], loss_metric, accuracy_metric, options["batch_size"])
+        pipeline = TextPairPipeline([model], options["batch_size"])
         history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
 
         if execute_type == "train":
