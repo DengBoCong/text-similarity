@@ -101,6 +101,64 @@ class PositionEmbedding(keras.layers.Layer):
         return base_config
 
 
+class RelativePositionEmbedding(keras.layers.Layer):
+    """定义相对位置编码：https://arxiv.org/abs/1803.02155
+    """
+
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 embeddings_initializer: Any = "zeros",
+                 **kwargs):
+        """
+        :param input_dim: 输入维度
+        :param output_dim: 输出维度
+        :param embeddings_initializer: 初始化器
+        """
+        super(RelativePositionEmbedding, self).__init__(**kwargs)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.embeddings_initializer = embeddings_initializer
+
+    def build(self, input_shape):
+        super(RelativePositionEmbedding, self).build(input_shape)
+        self.embeddings = self.add_weight(
+            name="embeddings",
+            shape=(self.input_dim, self.output_dim),
+            initializer=self.embeddings_initializer
+        )
+
+    def call(self, inputs, *args, **kwargs):
+        query, value = inputs
+        # 计算位置差
+        query_idx = keras.backend.arange(0, query.shape[1], dtype="int32")
+        query_idx = tf.expand_dims(query_idx, axis=1)
+        value_idx = keras.backend.arange(0, value.shape[1], dtype="int32")
+        value_idx = tf.expand_dims(value_idx, axis=0)
+        pos_ids = value_idx - query_idx
+
+        max_position = (self.input_dim - 1) // 2
+        pos_ids = tf.clip_by_value(pos_ids, -max_position, max_position)
+        pos_ids = pos_ids + max_position
+        return tf.gather(params=self.embeddings, indices=pos_ids)
+
+    def compute_output_shape(self, input_shape):
+        return None, None, self.output_dim
+
+    def compute_mask(self, inputs, mask=None):
+        return mask[0]
+
+    def get_config(self):
+        config = {
+            "input_dim": self.input_dim,
+            "output_dim": self.output_dim,
+            "embeddings_initializer": keras.initializers.serialize(initializer=self.embeddings_initializer)
+        }
+        base_config = super(RelativePositionEmbedding, self).get_config()
+        config.update(base_config)
+        return config
+
+
 class Embedding(keras.layers.Embedding):
     """扩展Embedding层
     """
@@ -127,10 +185,6 @@ class Embedding(keras.layers.Embedding):
             return tf.linalg.matmul(a=inputs, b=self.embeddings, transpose_b=True)
 
     def compute_output_shape(self, input_shape):
-        """关于判据，本来是通过缓存call时的mode参数来判断的，但是后来发现
-        Keras在使用compute_output_shape的时候不一定配套调用了call函数，
-        所以缓存的mode可能是不准的，因此只能出此下策。
-        """
         if len(input_shape) == 2:
             return super(Embedding, self).compute_output_shape(input_shape)
         else:
@@ -229,6 +283,7 @@ class BertSelfAttention(keras.layers.Layer):
                  key_size: int = None,
                  hidden_size: int = None,
                  initializer: Any = "glorot_uniform",
+                 pos_type: str = None,
                  **kwargs):
         """
         :param num_heads: 注意力头数
@@ -239,6 +294,7 @@ class BertSelfAttention(keras.layers.Layer):
         :param key_size: Attention中Q,K的head_size
         :param hidden_size: 编码维度
         :param initializer: 初始化器
+        :param pos_type: 指定位置编码种类，现支持经典的相对位置编码: "typical_relation"
         """
         super(BertSelfAttention, self).__init__(**kwargs)
         self.num_heads = num_heads
@@ -249,6 +305,7 @@ class BertSelfAttention(keras.layers.Layer):
         self.key_size = key_size if key_size is not None else head_size
         self.hidden_size = hidden_size if hidden_size is not None else num_heads * head_size
         self.initializer = initializer
+        self.pos_type = pos_type
 
     def build(self, input_shape):
         super(BertSelfAttention, self).build(input_shape)
@@ -271,7 +328,11 @@ class BertSelfAttention(keras.layers.Layer):
 
     @recompute_grad
     def call(self, inputs, *args, **kwargs):
-        query, key, value, mask = inputs
+        pos_ids = None
+        if self.pos_type == "typical_relation":
+            query, key, value, pos_ids, mask = inputs
+        else:
+            query, key, value, mask = inputs
         query = self.query_dense(query)
         key = self.key_dense(key)
         value = self.value_dense(value)
@@ -288,7 +349,9 @@ class BertSelfAttention(keras.layers.Layer):
             num_heads=self.num_heads,
             attention_head_size=self.head_size,
             dropout=self.attention_dropout,
-            mask=mask
+            mask=mask,
+            pos_type=self.pos_type,
+            pos_ids=pos_ids
         )
 
         attn_outputs = self.output_dense(scaled_attention)

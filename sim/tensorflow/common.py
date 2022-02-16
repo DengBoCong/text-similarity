@@ -157,7 +157,9 @@ def scaled_dot_product_attention(query: tf.Tensor,
                                  num_heads: int,
                                  attention_head_size: int,
                                  dropout: float,
-                                 mask: Any = None) -> tuple:
+                                 mask: Any = None,
+                                 pos_type: str = None,
+                                 pos_ids: Any = None) -> tuple:
     """点乘注意力计算
     :param query: (..., seq_len_q, depth)
     :param key: (..., seq_len_k, depth)
@@ -167,8 +169,13 @@ def scaled_dot_product_attention(query: tf.Tensor,
     :param attention_head_size: 分头之后维度大小
     :param dropout: 注意力dropout
     :param mask: float, (..., seq_len_q, seq_len_k)
+    :param pos_type: 指定位置编码种类，现支持经典的相对位置编码: "typical_relation"
+    :param pos_ids: 位置编码
     """
     attention_scores = tf.matmul(a=query, b=key, transpose_b=True)
+    # 处理位置编码
+    if pos_type == "typical_relation":
+        attention_scores = attention_scores + tf.einsum("bhjd,kjd->bhjk", query, pos_ids)
     attention_scores = attention_scores / tf.math.sqrt(x=tf.cast(x=attention_head_size, dtype="float32"))
 
     if mask is not None:
@@ -178,6 +185,8 @@ def scaled_dot_product_attention(query: tf.Tensor,
     attention_weights = keras.layers.Dropout(rate=dropout)(attention_weights)
 
     context_layer = tf.matmul(a=attention_weights, b=value)
+    if pos_type == "typical_relation":
+        context_layer = context_layer + tf.einsum("bhjk,jkd->bhjd", attention_weights, pos_ids)
     context_layer = tf.transpose(a=context_layer, perm=[0, 2, 1, 3])
     context_layer = tf.reshape(tensor=context_layer, shape=(batch_size, -1, attention_head_size * num_heads))
 

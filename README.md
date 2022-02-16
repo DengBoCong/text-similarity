@@ -90,7 +90,8 @@ print(min_hash.search(candidates, query))  # index in candidates
 ```
 
 ### SIF
-
++ [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
++ [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
 ```python
 sentences = [["token1", "token2", "..."], ...]
 vector = [[[1, 1, 1], [2, 2, 2], [...]], ...]
@@ -105,7 +106,8 @@ usif.fit(tokens_list=sentences, vector_list=vector)
 ```
 
 ### RNN Base
-
++ [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
++ [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
 ```python
 # TensorFlow version
 from examples.tensorflow.run_siamese_rnn import actuator
@@ -117,7 +119,7 @@ actuator("./data/config/siamse_rnn.json", execute_type="train")
 ```
 
 ### Bert Base
-
++ [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
 ```python
 # TensorFlow version
 from examples.tensorflow.run_basic_bert import actuator
@@ -127,7 +129,7 @@ actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train")
 ```
 
 ### Albert
-
++ [ALBERT: A Lite BERT For Self-superpised Learning Of Language Representations](https://arxiv.org/pdf/1909.11942.pdf)
 ```python
 # TensorFlow version
 from examples.tensorflow.run_albert import actuator
@@ -137,8 +139,5 @@ actuator(model_dir="./data/albert_small_zh_google", execute_type="train")
 ```
 
 # Reference
-+ [A Simple But Tough-To-Beat Baseline For Sentence Embeddings](https://openreview.net/pdf?id=SyK00v5xx)
-+ [Unsupervised Random Walk Sentence Embeddings: A Strong but Simple Baseline](https://aclanthology.org/W18-3012.pdf)
-+ [Siamese Recurrent Architectures for Learning Sentence Similarity](https://scholar.google.com/scholar_url?url=https://ojs.aaai.org/index.php/AAAI/article/view/10350/10209&hl=zh-CN&sa=T&oi=gsb-gga&ct=res&cd=0&d=7393466935379636447&ei=KQWzYNL5OYz4yATXqJ6YCg&scisig=AAGBfm0zNEZZez8zh5ZB_iG7UTrwXmhJWg)
-+ [Learning Text Similarity with Siamese Recurrent Networks](https://aclanthology.org/W16-1617.pdf)
-+ [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
++ [SimCSE: Simple Contrastive Learning of Sentence Embeddings](https://arxiv.org/pdf/2104.08821.pdf)
++ [Self-Attention with Relative Position Representations](https://arxiv.org/pdf/1803.02155.pdf)

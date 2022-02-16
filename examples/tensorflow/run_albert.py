@@ -2,6 +2,7 @@
 """ TensorFlow Run Albert
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
+# 中文与训练模型：https://github.com/brightmart/albert_zh
 #
 # License: MIT License
 
@@ -171,8 +172,6 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
             units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
         )(outputs)
         model = keras.Model(inputs=bert.input, outputs=outputs)
-        model.summary()
-        exit(0)
 
         checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
                                              checkpoint_save_size=options["checkpoint_save_size"], model=model)
