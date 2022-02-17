@@ -119,6 +119,7 @@ class RelativePositionEmbedding(keras.layers.Layer):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.embeddings_initializer = embeddings_initializer
+        self.supports_masking = True
 
     def build(self, input_shape):
         super(RelativePositionEmbedding, self).build(input_shape)
@@ -144,9 +145,6 @@ class RelativePositionEmbedding(keras.layers.Layer):
 
     def compute_output_shape(self, input_shape):
         return None, None, self.output_dim
-
-    def compute_mask(self, inputs, mask=None):
-        return mask[0]
 
     def get_config(self):
         config = {

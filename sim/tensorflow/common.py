@@ -252,3 +252,30 @@ def recompute_grad(call):
         return outputs
 
     return inner
+
+
+def get_angles(pos: Any, i: Any, depth: Any):
+    """pos/10000^(2i/d_model)
+    :param pos: 字符总的数量按顺序递增
+    :param i: 词嵌入大小按顺序递增
+    :param depth: 位置嵌入大小
+    :return: shape=(pos.shape[0], d_model)
+    """
+    angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(depth))
+    return pos * angle_rates
+
+
+class Sinusoidal(keras.initializers.Initializer):
+    """Sin-Cos位置向量初始化器
+    来自：https://arxiv.org/abs/1706.03762
+    """
+
+    def __call__(self, shape: Any, dtype: Any = None, *args, **kwargs):
+        """Sin-Cos形式的位置向量
+        """
+        position, depth = shape
+        angle_rads = get_angles(np.arange(position)[:, np.newaxis], np.arange(depth)[np.newaxis, :], depth)
+
+        angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
+        angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+        return angle_rads

@@ -163,7 +163,7 @@ def bert_model(config: BertConfig,
                position_merge_mode: str = "add",
                is_training: bool = True,
                add_pooling_layer: bool = True,
-               with_pool: Any = True,
+               with_pool: Any = False,
                with_nsp: Any = False,
                with_mlm: Any = False,
                name: str = "bert") -> keras.Model:

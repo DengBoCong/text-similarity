@@ -78,7 +78,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
             valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size)
 
         bert_config = BertConfig.from_json_file(json_file_path=config_path)
-        bert = bert_model(config=bert_config, batch_size=batch_size)
+        bert = bert_model(config=bert_config, batch_size=batch_size, with_pool=True)
         load_bert_weights_from_checkpoint(checkpoint_path, bert, bert_variable_mapping(bert_config.num_hidden_layers))
 
         outputs = keras.layers.Dropout(rate=0.1)(bert.output)

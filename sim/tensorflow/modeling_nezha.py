@@ -13,6 +13,7 @@ import copy
 import tensorflow as tf
 import tensorflow.keras as keras
 from sim.tensorflow.common import recompute_grad
+from sim.tensorflow.common import Sinusoidal
 from sim.tensorflow.layers import BertSelfAttention
 from sim.tensorflow.layers import Embedding
 from sim.tensorflow.layers import FeedForward
@@ -93,13 +94,15 @@ class BertLayer(keras.layers.Layer):
         self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=0.02)
         self.attn_name = "multi-head-self-attention"
         self.feed_forward_name = "feedforward"
+        self.embeddings_initializer = Sinusoidal()
+        self.key_size = self.bert_config.attention_key_size
 
     def build(self, input_shape):
         super(BertLayer, self).build(input_shape)
         self.position_embeddings = RelativePositionEmbedding(
             input_dim=2 * 64 + 1,
-            output_dim=self.bert_config.attention_key_size,
-            embeddings_initializer="Sinusoidal",
+            output_dim=self.key_size if self.key_size is not None else self.bert_config.attention_head_size,
+            embeddings_initializer=self.embeddings_initializer,
             name="embedding-relative-position",
             trainable=False
         )
@@ -150,7 +153,7 @@ def NEZHA(config: BertConfig,
           batch_size: int,
           is_training: bool = True,
           add_pooling_layer: bool = True,
-          with_pool: Any = True,
+          with_pool: Any = False,
           with_nsp: Any = False,
           with_mlm: Any = False,
           name: str = "bert") -> keras.Model:
