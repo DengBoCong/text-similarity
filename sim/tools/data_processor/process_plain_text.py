@@ -10,12 +10,9 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
-import csv
 import json
 import random
-
 import networkx as nx
-import numpy as np
 import os
 import pandas as pd
 import pickle as pkl
@@ -119,6 +116,7 @@ def text_to_token_id_for_bert(file_path: str,
                               padding: str = 'post',
                               truncating: str = 'post',
                               value: int = 0,
+                              is_single: bool = False,
                               print_count: int = 1000) -> NoReturn:
     """用于bert将Text转换为token id
     :param file_path: 未处理的文本数据路径，文本格式: <text1><split><text2><split><label>
@@ -130,6 +128,7 @@ def text_to_token_id_for_bert(file_path: str,
     :param padding: 填充类型，pre在前，post在后
     :param truncating: 截断类型，pre在前，post在后
     :param value: 填充值类型，float或者是string
+    :param is_single: 是否处理成单条文本
     :param print_count: 处理print_count数量数据打印日志
     """
     if not os.path.exists(file_path):
@@ -147,10 +146,20 @@ def text_to_token_id_for_bert(file_path: str,
                 continue
 
             pair = line.split(split)
-            token_ids, segment_ids = tokenizer.encode(first_text=pair[0], second_text=pair[1], max_len=pad_max_len)
-            batch_token_ids.append(token_ids)
-            batch_segment_ids.append(segment_ids)
-            batch_labels.append(pair[2] if len(pair) == 3 else 0)
+            if is_single:
+                a_token_ids, a_segment_ids = tokenizer.encode(first_text=pair[0], max_len=pad_max_len)
+                batch_token_ids.append(a_token_ids)
+                batch_segment_ids.append(a_segment_ids)
+                b_token_ids, b_segment_ids = tokenizer.encode(first_text=pair[1], max_len=pad_max_len)
+                batch_token_ids.append(b_token_ids)
+                batch_segment_ids.append(b_segment_ids)
+                batch_labels.append(pair[2] if len(pair) == 3 else 0)
+                batch_labels.append(pair[2] if len(pair) == 3 else 0)
+            else:
+                token_ids, segment_ids = tokenizer.encode(first_text=pair[0], second_text=pair[1], max_len=pad_max_len)
+                batch_token_ids.append(token_ids)
+                batch_segment_ids.append(segment_ids)
+                batch_labels.append(pair[2] if len(pair) == 3 else 0)
 
             count += 1
             if count % print_count == 0:

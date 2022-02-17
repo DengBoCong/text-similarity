@@ -130,11 +130,12 @@ class SimCSEDataGenerator(DataGenerator):
             np.random.shuffle(self.data)
 
         for i in range(self.steps):
-            input1, input2, label = [], [], []
+            input1 = []
             for sample in self.data[i:i + self.batch_size]:
-                sample = sample.split("\t")
-                input1.append(list(map(int, sample[0].split(" "))))
-                input2.append(list(map(int, sample[1].split(" "))))
-                label.append(int(sample[2]) if len(sample) == 3 else 0)
+                token_ids = list(map(int, sample.split("\t")[0].split(" ")))
+                input1.append(token_ids)
+                input1.append(token_ids)
 
-            yield {"inputs1": np.asarray(input1), "inputs2": np.asarray(input2), "labels": np.asarray(label)}
+            input1 = np.asarray(input1)
+
+            yield {"inputs1": input1, "inputs2": np.zeros_like(input1), "labels": np.zeros_like(input1[:, :1])}
