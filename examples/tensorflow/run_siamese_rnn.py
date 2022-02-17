@@ -114,7 +114,7 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         with open(options["train_data_path"], "r", encoding="utf-8") as train_file, open(
                 options["valid_data_path"], "r", encoding="utf-8") as valid_file:
             train_generator = NormalDataGenerator(train_file.readlines(), options["batch_size"])
-            valid_generator = NormalDataGenerator(valid_file.readlines(), options["batch_size"])
+            valid_generator = NormalDataGenerator(valid_file.readlines(), options["batch_size"], random=False)
 
         model = siamese_rnn_with_embedding(emb_dim=options["embedding_dim"], vec_dim=options["vec_dim"],
                                            vocab_size=options["vocab_size"], units=options["units"],

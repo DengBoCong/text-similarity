@@ -110,3 +110,31 @@ class NormalDataGenerator(DataGenerator):
                 label.append(int(sample[2]) if len(sample) == 3 else 0)
 
             yield {"inputs1": np.asarray(input1), "inputs2": np.asarray(input2), "labels": np.asarray(label)}
+
+
+class SimCSEDataGenerator(DataGenerator):
+    """SimCSE数据生成器
+    """
+
+    def __init__(self, data: Any, batch_size: int, buffer_size: int = None, steps: int = None, random: bool = True):
+        """
+        :param data: 数据
+        :param batch_size: batch size
+        :param buffer_size: 缓冲大小
+        :param steps: 总步数
+        """
+        super(SimCSEDataGenerator, self).__init__(data, batch_size, buffer_size, steps, random)
+
+    def __iter__(self):
+        if self.random:
+            np.random.shuffle(self.data)
+
+        for i in range(self.steps):
+            input1, input2, label = [], [], []
+            for sample in self.data[i:i + self.batch_size]:
+                sample = sample.split("\t")
+                input1.append(list(map(int, sample[0].split(" "))))
+                input2.append(list(map(int, sample[1].split(" "))))
+                label.append(int(sample[2]) if len(sample) == 3 else 0)
+
+            yield {"inputs1": np.asarray(input1), "inputs2": np.asarray(input2), "labels": np.asarray(label)}

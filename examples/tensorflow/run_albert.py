@@ -77,7 +77,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
         with open(train_data_path, "r", encoding="utf-8") as train_file, open(
                 valid_data_path, "r", encoding="utf-8") as valid_file:
             train_generator = NormalDataGenerator(train_file.readlines(), batch_size)
-            valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size)
+            valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size, random=False)
 
         bert_config = BertConfig.from_json_file(json_file_path=config_path)
         bert = albert(config=bert_config, batch_size=batch_size)

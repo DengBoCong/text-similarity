@@ -1,8 +1,7 @@
 #! -*- coding: utf-8 -*-
-""" TensorFlow Run NEZHA
+""" TensorFlow Run SimCSE
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
-# 中文与训练模型：https://github.com/huawei-noah/Pretrained-Language-Model/tree/master/NEZHA-TensorFlow
 #
 # License: MIT License
 
@@ -18,7 +17,7 @@ from sim.tensorflow import bert_variable_mapping
 from sim.tensorflow.common import load_bert_weights_from_checkpoint
 from sim.tensorflow.common import load_checkpoint
 from sim.tensorflow.common import set_seed
-from sim.tensorflow.modeling_nezha import NEZHA
+from sim.tensorflow.modeling_bert import bert_model
 from sim.tensorflow.pipeline import TextPairPipeline
 from sim.tools import BertConfig
 from sim.tools.data_processor.data_format import NormalDataGenerator
@@ -41,16 +40,16 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
     batch_size = 64
     seed = 1
     epochs = 5
-    checkpoint_save_size = 5
-    checkpoint_save_freq = 2
     raw_train_data_path = "./corpus/chinese/LCQMC/train.txt"
     raw_valid_data_path = "./corpus/chinese/LCQMC/test.txt"
     train_data_path = "./data/train1.txt"
     valid_data_path = "./data/test1.txt"
     checkpoint_dir = "./data/checkpoint/"
+    checkpoint_save_size = 5
+    checkpoint_save_freq = 2
 
     config_path = os.path.join(model_dir, "bert_config.json")
-    checkpoint_path = os.path.join(model_dir, "model.ckpt-691689")
+    checkpoint_path = os.path.join(model_dir, "bert_model.ckpt")
     dict_path = os.path.join(model_dir, "vocab.txt")
 
     with open(config_path, "r", encoding="utf-8") as file:
@@ -60,7 +59,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
     key = str(datetime.now())
     logger.info("========================{}========================".format(key))
     # 训练时保存模型配置
-    if execute_type == "train" and not save_model_config(key=key, model_desc="NEZHA",
+    if execute_type == "train" and not save_model_config(key=key, model_desc="Bert Base",
                                                          model_config=options, config_path=MODEL_CONFIG_FILE_PATH):
         raise EOFError("An error occurred while saving the configuration file")
 
@@ -75,15 +74,15 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
         with open(train_data_path, "r", encoding="utf-8") as train_file, open(
                 valid_data_path, "r", encoding="utf-8") as valid_file:
             train_generator = NormalDataGenerator(train_file.readlines(), batch_size)
-            valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size, random=False)
+            valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size)
 
         bert_config = BertConfig.from_json_file(json_file_path=config_path)
-        bert = NEZHA(config=bert_config, batch_size=batch_size, with_pool=True)
+        bert = bert_model(config=bert_config, batch_size=batch_size, with_pool=True)
         load_bert_weights_from_checkpoint(checkpoint_path, bert, bert_variable_mapping(bert_config.num_hidden_layers))
 
         outputs = keras.layers.Dropout(rate=0.1)(bert.output)
         outputs = keras.layers.Dense(
-            units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02),
+            units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
         )(outputs)
         model = keras.Model(inputs=bert.input, outputs=outputs)
 
@@ -108,4 +107,4 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
 
 
 if __name__ == '__main__':
-    actuator(model_dir="./data/ch/bert/NEZHA-Base-WWM", execute_type="train")
+    actuator(model_dir="./data/ch/bert/chinese_wwm_L-12_H-768_A-12", execute_type="train")

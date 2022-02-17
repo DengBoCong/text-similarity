@@ -22,6 +22,7 @@
    + RNN Base
    + Bert Base
    + Albert
+   + NEZHA
 
 # Dependency
 ```shell
@@ -137,6 +138,17 @@ actuator(model_dir="./data/albert_small_zh_google", execute_type="train")
 
 # Pytorch version
 ```
+
+### NEZHA
++ [NEZHA: Neural Contextualized Representation For Chinese Language Understanding](https://arxiv.org/pdf/1909.00204.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_nezha import actuator
+actuator(model_dir="./data/NEZHA-Base-WWM", execute_type="train")
+
+# Pytorch version
+```
+
 
 # Reference
 + [SimCSE: Simple Contrastive Learning of Sentence Embeddings](https://arxiv.org/pdf/2104.08821.pdf)
