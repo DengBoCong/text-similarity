@@ -85,7 +85,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
         outputs = keras.layers.Dense(
             units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
         )(outputs)
-        model = keras.Model(inputs=bert.input, outputs=outputs)
+        model = keras.Model(inputs=bert.inputs, outputs=outputs)
 
         checkpoint_manager = load_checkpoint(checkpoint_dir=checkpoint_dir, execute_type=execute_type,
                                              checkpoint_save_size=checkpoint_save_size, model=model)
