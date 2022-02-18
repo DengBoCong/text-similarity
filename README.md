@@ -23,6 +23,8 @@
    + Bert Base
    + Albert
    + NEZHA
+   + SimCSE
+   + RoBERTa
 
 # Dependency
 ```shell
@@ -149,7 +151,25 @@ actuator(model_dir="./data/NEZHA-Base-WWM", execute_type="train")
 # Pytorch version
 ```
 
+### SimCSE
++ [SimCSE: Simple Contrastive Learning of Sentence Embeddings](https://arxiv.org/pdf/2104.08821.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_simcse import actuator
+actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", model_type="bert")
+
+# Pytorch version
+```
+
+### RoBERTa
++ [RoBERTa: A Robustly Optimized BERT Pretraining Approach](https://arxiv.org/pdf/1907.11692.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_basic_bert import actuator
+actuator(model_dir="./data/chinese_roberta_L-6_H-384_A-12", execute_type="train")
+
+# Pytorch version
+```
 
 # Reference
-+ [SimCSE: Simple Contrastive Learning of Sentence Embeddings](https://arxiv.org/pdf/2104.08821.pdf)
 + [Self-Attention with Relative Position Representations](https://arxiv.org/pdf/1803.02155.pdf)
