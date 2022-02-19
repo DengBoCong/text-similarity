@@ -14,6 +14,7 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from datetime import datetime
 from sim.tensorflow.modeling_siamese_rnn import siamese_rnn_with_embedding
+from sim.tensorflow.pipeline import TextPairPipeline
 from sim.tools.data_processor.data_format import NormalDataGenerator
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
@@ -22,69 +23,33 @@ from sim.tensorflow.common import load_checkpoint
 from sim.tensorflow.common import set_seed
 from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
-from sim.tools.pipeline import NormalPipeline
 from typing import Any
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
+tf.config.run_functions_eagerly(True)
 
 
-class TextPairPipeline(NormalPipeline):
-    def __init__(self,
-                 model: list,
-                 batch_size: int):
+class CustomPipeline(TextPairPipeline):
+    def __init__(self, model: list, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param batch_size: batch size
         """
-        super(TextPairPipeline, self).__init__(model, batch_size)
+        super(CustomPipeline, self).__init__(model, batch_size)
 
-    def _train_step(self, batch_dataset: dict, optimizer: keras.optimizers.Optimizer, *args, **kwargs) -> dict:
-        """ 训练步
-        :param batch_dataset: 训练步的当前batch数据
-        :param optimizer: 优化器
-        :return: 返回所得指标字典
+    def _metrics(self, y_true: Any, y_pred: Any):
+        """指标计算
+        :param y_true: 真实标签
+        :param y_pred: 预测值
         """
-        with tf.GradientTape() as tape:
-            outputs1, outputs2 = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
+        outputs1, outputs2 = y_pred
+        cos_sim = keras.losses.cosine_similarity(outputs1, outputs2, axis=1)
+        cos_sim = 0.5 + 0.5 * cos_sim
+        loss = keras.losses.BinaryCrossentropy()(y_true, cos_sim)
+        accuracy = keras.metrics.BinaryAccuracy(threshold=0.6)(y_true, cos_sim)
 
-            diff = tf.reduce_sum(tf.abs(tf.math.subtract(outputs1, outputs2)), axis=1)
-            sim = tf.clip_by_value(tf.exp(-1.0 * diff), 1e-7, 1.0 - 1e-7)
-            pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
-            loss = tf.reduce_sum(pred)
-
-        accuracy = keras.metrics.BinaryAccuracy()(batch_dataset["labels"], sim)
-
-        variables = self.model[0].trainable_variables
-        gradients = tape.gradient(target=loss, sources=variables)
-        optimizer.apply_gradients(zip(gradients, variables))
-
-        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
-
-    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
-        """ 验证步
-        :param batch_dataset: 验证步的当前batch数据
-        """
-        outputs1, outputs2 = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
-
-        diff = tf.reduce_sum(tf.abs(tf.math.subtract(outputs1, outputs2)), axis=1)
-        sim = tf.clip_by_value(tf.exp(-1.0 * diff), 1e-7, 1.0 - 1e-7)
-        pred = tf.square(tf.math.subtract(sim, batch_dataset["labels"]))
-        loss = tf.reduce_sum(pred)
-        accuracy = keras.metrics.BinaryAccuracy()(batch_dataset["labels"], sim)
-
-        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
-
-    def inference(self, query1: str, query2: str) -> Any:
-        """ 推断模块
-        :param query1: 文本1
-        :param query2: 文本2
-        :return:
-        """
-        pass
-
-    def _save_model(self, *args, **kwargs) -> NoReturn:
-        pass
+        return loss, accuracy
 
 
 def actuator(config_path: str, execute_type: str) -> NoReturn:
@@ -122,8 +87,8 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         checkpoint_manager = load_checkpoint(checkpoint_dir=options["checkpoint_dir"], execute_type=execute_type,
                                              checkpoint_save_size=options["checkpoint_save_size"], model=model)
 
-        pipeline = TextPairPipeline([model], options["batch_size"])
-        history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
+        pipeline = CustomPipeline([model], options["batch_size"])
+        history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=options["seed"])

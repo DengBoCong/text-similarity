@@ -23,7 +23,7 @@ from sim.tensorflow.common import set_seed
 from sim.tensorflow.modeling_albert import albert
 from sim.tensorflow.modeling_bert import bert_model
 from sim.tensorflow.modeling_nezha import NEZHA
-from sim.tensorflow.pipeline import NormalPipeline
+from sim.tensorflow.pipeline import TextPairPipeline
 from sim.tools import BertConfig
 from sim.tools.data_processor.data_format import SimCSEDataGenerator
 from sim.tools.data_processor.process_plain_text import text_to_token_id_for_bert
@@ -35,9 +35,10 @@ from typing import Any
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
+tf.config.run_functions_eagerly(True)
 
 
-class SimCSEPipeline(NormalPipeline):
+class SimCSEPipeline(TextPairPipeline):
     def __init__(self, model: list, batch_size: int):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
@@ -45,62 +46,25 @@ class SimCSEPipeline(NormalPipeline):
         """
         super(SimCSEPipeline, self).__init__(model, batch_size)
 
-    def simcse_loss(self, pred: Any) -> tuple:
-        """计算simcse lss
+    def _metrics(self, y_true: Any, y_pred: Any):
+        """指标计算, SimCSE
+        :param y_true: 真实标签
+        :param y_pred: 预测值
         """
-
-        ids = keras.backend.arange(0, pred.shape[0])
+        ids = keras.backend.arange(0, y_pred.shape[0])
         ids_1 = ids[None, :]
         ids_2 = (ids + 1 - ids % 2 * 2)[:, None]
         y_true = tf.equal(ids_1, ids_2)
         y_true = tf.cast(y_true, tf.float32)
 
-        pred = tf.math.l2_normalize(pred, axis=1)
-        sim = tf.matmul(pred, pred, transpose_b=True)
-        sim = (sim - tf.eye(pred.shape[0]) * 1e12) * 20
+        y_pred = tf.math.l2_normalize(y_pred, axis=1)
+        sim = tf.matmul(y_pred, y_pred, transpose_b=True)
+        sim = (sim - tf.eye(y_pred.shape[0]) * 1e12) * 20
 
-        return y_true, sim
-
-    def _train_step(self, batch_dataset: dict, optimizer: keras.optimizers.Optimizer, *args, **kwargs) -> dict:
-        """ 训练步
-        :param batch_dataset: 训练步的当前batch数据
-        :param optimizer: 优化器
-        :return: 返回所得指标字典
-        """
-        with tf.GradientTape() as tape:
-            outputs = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
-            y_true, sim = self.simcse_loss(outputs)
-            loss = keras.losses.CategoricalCrossentropy(from_logits=True)(y_true, sim)
-
-        accuracy = keras.metrics.CategoricalAccuracy()(y_true, sim)
-
-        variables = self.model[0].trainable_variables
-        gradients = tape.gradient(target=loss, sources=variables)
-        optimizer.apply_gradients(zip(gradients, variables))
-
-        return {"train_loss": loss, "train_accuracy": accuracy}
-
-    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
-        """ 验证步
-        :param batch_dataset: 验证步的当前batch数据
-        """
-        outputs = self.model[0](inputs=[batch_dataset["inputs1"], batch_dataset["inputs2"]])
-        y_true, sim = self.simcse_loss(outputs)
         loss = keras.losses.CategoricalCrossentropy(from_logits=True)(y_true, sim)
         accuracy = keras.metrics.CategoricalAccuracy()(y_true, sim)
 
-        return {"train_loss": loss, "train_accuracy": accuracy}
-
-    def inference(self, query1: str, query2: str) -> Any:
-        """ 推断模块
-        :param query1: 文本1
-        :param query2: 文本2
-        :return:
-        """
-        pass
-
-    def _save_model(self, *args, **kwargs) -> NoReturn:
-        pass
+        return loss, accuracy
 
 
 def actuator(model_dir: str, execute_type: str, model_type: str, pooling: str = "cls") -> NoReturn:
@@ -194,7 +158,7 @@ def actuator(model_dir: str, execute_type: str, model_type: str, pooling: str = 
                                              checkpoint_save_size=checkpoint_save_size, model=model)
 
         pipeline = SimCSEPipeline([model], batch_size)
-        history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
+        history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=seed)

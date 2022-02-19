@@ -11,7 +11,7 @@ from __future__ import print_function
 
 import json
 import os
-
+import tensorflow as tf
 import tensorflow.keras as keras
 from datetime import datetime
 from sim.tensorflow import bert_variable_mapping
@@ -30,6 +30,7 @@ from sim.tools.tools import save_model_config
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
+tf.config.run_functions_eagerly(True)
 
 
 def actuator(model_dir: str, execute_type: str) -> NoReturn:
@@ -91,7 +92,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
                                              checkpoint_save_size=checkpoint_save_size, model=model)
 
         pipeline = TextPairPipeline([model], batch_size)
-        history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
+        history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=seed)
