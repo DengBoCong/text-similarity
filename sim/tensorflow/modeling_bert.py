@@ -144,7 +144,8 @@ class BertLayer(keras.layers.Layer):
                                                                 name=f"{self.feed_forward_name}-norm")
 
     @recompute_grad
-    def call(self, inputs, mask, *args, **kwargs):
+    def call(self, inputs, *args, **kwargs):
+        inputs, mask = inputs
         attn_outputs, attn_weights = self.bert_self_attention([inputs, inputs, inputs, mask])
         attn_outputs = self.attn_dropout(attn_outputs)
         attn_outputs = self.attn_add([attn_outputs, inputs])
@@ -210,7 +211,7 @@ def bert_model(config: BertConfig,
     )([input_ids, token_type_ids])
 
     for index in range(config.num_hidden_layers):
-        outputs = BertLayer(config=config, batch_size=batch_size, name=f"bert-layer-{index}")(outputs, input_mask)
+        outputs = BertLayer(config=config, batch_size=batch_size, name=f"bert-layer-{index}")([outputs, input_mask])
 
     if add_pooling_layer:
         argument = {}
