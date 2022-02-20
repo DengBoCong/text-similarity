@@ -30,7 +30,7 @@ def bert_embedding(hidden_size: int,
                    max_position: int = 512,
                    position_merge_mode: str = "add",
                    hierarchical_position: Any = None,
-                   segment_vocab_size: int = 2,
+                   type_vocab_size: int = 2,
                    layer_norm_eps: float = 1e-12,
                    initializer: Any = None,
                    position_ids: Any = None,
@@ -44,7 +44,7 @@ def bert_embedding(hidden_size: int,
     :param max_position: 绝对位置编码最大位置数
     :param position_merge_mode: 输入和position合并的方式
     :param hierarchical_position: 是否层次分解位置编码
-    :param segment_vocab_size: segment总数目
+    :param type_vocab_size: segment总数目
     :param layer_norm_eps: layer norm 附加因子，避免除零
     :param initializer: Embedding的初始化器
     :param position_ids: 位置编码ids
@@ -59,12 +59,12 @@ def bert_embedding(hidden_size: int,
 
     outputs = token_embeddings(input_ids)
 
-    if segment_vocab_size > 0:
+    if type_vocab_size > 0:
         if shared_segment_embeddings:
             segment_embeddings = token_embeddings(segment_ids)
         else:
             segment_embeddings = keras.layers.Embedding(
-                input_dim=segment_vocab_size,
+                input_dim=type_vocab_size,
                 output_dim=embedding_size,
                 embeddings_initializer=initializer,
                 name=f"{name}-segment"
@@ -112,7 +112,7 @@ class BertLayer(keras.layers.Layer):
         super(BertLayer, self).__init__(**kwargs)
         self.bert_config = config
         self.batch_size = batch_size
-        self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=0.02)
+        self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=config.initializer_range)
         self.attn_name = "multi-head-self-attention"
         self.feed_forward_name = "feedforward"
 
@@ -182,7 +182,7 @@ def bert_model(config: BertConfig,
     input_ids = keras.Input(shape=(None,))
     token_type_ids = keras.Input(shape=(None,))
     input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
-    initializer = keras.initializers.TruncatedNormal(stddev=0.02)
+    initializer = keras.initializers.TruncatedNormal(stddev=config.initializer_range)
 
     config = copy.deepcopy(config)
     if not is_training:
@@ -206,7 +206,7 @@ def bert_model(config: BertConfig,
         max_position=config.max_position,
         position_merge_mode=position_merge_mode,
         hierarchical_position=config.hierarchical_position,
-        segment_vocab_size=config.segment_vocab_size,
+        type_vocab_size=config.type_vocab_size,
         layer_norm_eps=config.layer_norm_eps
     )([input_ids, token_type_ids])
 

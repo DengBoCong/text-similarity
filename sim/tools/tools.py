@@ -11,8 +11,9 @@ import re
 import os
 import sys
 import logging
-from datetime import datetime
 import numpy as np
+from datetime import datetime
+from functools import lru_cache
 from logging import Logger
 from typing import Any
 
@@ -215,3 +216,31 @@ def orthogonally_resize(a: np.ndarray, new_shape: Any, window: int = 2) -> Any:
         slices.append(np.s_[:d2])
     a = a[tuple(slices)]
     return a / np.linalg.norm(a) * a_norm
+
+
+def make_log_bucket_position(relative_pos: Any, bucket_size: int, max_position: int) -> Any:
+    """混入log bucket位置编码
+    :param relative_pos:
+    :param bucket_size: bucket size
+    :param max_position: 最大位置
+    """
+    sign = np.sign(relative_pos)
+    mid = bucket_size // 2
+    abs_pos = np.where((relative_pos < mid) & (relative_pos > -mid), mid - 1, np.abs(relative_pos))
+    log_pos = np.ceil(np.log(abs_pos / mid) / np.log((max_position - 1) / mid) * (mid - 1)) + mid
+    bucket_pos = np.where(abs_pos <= mid, relative_pos, log_pos * sign).astype(np.int)
+    return bucket_pos
+
+
+@lru_cache(maxsize=128)
+def build_relative_position_deberta(query_size, key_size, bucket_size=-1, max_position=-1):
+    """DeBERTa的相对位置编码"""
+    q_ids = np.arange(0, query_size)
+    k_ids = np.arange(0, key_size)
+    rel_pos_ids = q_ids[:, None] - np.tile(k_ids, (q_ids.shape[0], 1))
+    if bucket_size > 0 and max_position > 0:
+        rel_pos_ids = make_log_bucket_position(rel_pos_ids, bucket_size, max_position)
+    rel_pos_ids = rel_pos_ids.astype(np.long)
+    rel_pos_ids = rel_pos_ids[:query_size, :]
+    rel_pos_ids = rel_pos_ids[None, :]
+    return rel_pos_ids

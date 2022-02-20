@@ -28,7 +28,7 @@ def bert_embedding(hidden_size: int,
                    token_embeddings: Any,
                    hidden_dropout_prob: float = None,
                    shared_segment_embeddings: bool = False,
-                   segment_vocab_size: int = 2,
+                   type_vocab_size: int = 2,
                    layer_norm_eps: float = 1e-12,
                    initializer: Any = None,
                    name: str = "embedding") -> keras.Model:
@@ -38,7 +38,7 @@ def bert_embedding(hidden_size: int,
     :param token_embeddings: word embedding
     :param hidden_dropout_prob: Dropout比例
     :param shared_segment_embeddings: 若True，则segment跟token共用embedding
-    :param segment_vocab_size: segment总数目
+    :param type_vocab_size: segment总数目
     :param layer_norm_eps: layer norm 附加因子，避免除零
     :param initializer: Embedding的初始化器
     :param name: 模型名
@@ -52,12 +52,12 @@ def bert_embedding(hidden_size: int,
 
     outputs = token_embeddings(input_ids)
 
-    if segment_vocab_size > 0:
+    if type_vocab_size > 0:
         if shared_segment_embeddings:
             segment_embeddings = token_embeddings(segment_ids)
         else:
             segment_embeddings = keras.layers.Embedding(
-                input_dim=segment_vocab_size,
+                input_dim=type_vocab_size,
                 output_dim=embedding_size,
                 embeddings_initializer=initializer,
                 name=f"{name}-segment"
@@ -91,7 +91,7 @@ class BertLayer(keras.layers.Layer):
         super(BertLayer, self).__init__(**kwargs)
         self.bert_config = config
         self.batch_size = batch_size
-        self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=0.02)
+        self.initializer = initializer if initializer else keras.initializers.TruncatedNormal(stddev=config.initializer_range)
         self.attn_name = "multi-head-self-attention"
         self.feed_forward_name = "feedforward"
         self.embeddings_initializer = Sinusoidal()
@@ -171,7 +171,7 @@ def NEZHA(config: BertConfig,
     input_ids = keras.Input(shape=(None,))
     token_type_ids = keras.Input(shape=(None,))
     input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
-    initializer = keras.initializers.TruncatedNormal(stddev=0.02)
+    initializer = keras.initializers.TruncatedNormal(stddev=config.initializer_range)
 
     config = copy.deepcopy(config)
     if not is_training:
@@ -192,7 +192,7 @@ def NEZHA(config: BertConfig,
         token_embeddings=token_embeddings,
         hidden_dropout_prob=config.hidden_dropout_prob,
         shared_segment_embeddings=config.shared_segment_embeddings,
-        segment_vocab_size=config.segment_vocab_size,
+        type_vocab_size=config.type_vocab_size,
         layer_norm_eps=config.layer_norm_eps
     )([input_ids, token_type_ids])
 

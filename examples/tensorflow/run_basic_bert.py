@@ -84,7 +84,8 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
 
         outputs = keras.layers.Dropout(rate=0.1)(bert.output)
         outputs = keras.layers.Dense(
-            units=2, activation="softmax", kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.02)
+            units=2, activation="softmax",
+            kernel_initializer=keras.initializers.TruncatedNormal(stddev=bert_config.initializer_range)
         )(outputs)
         model = keras.Model(inputs=bert.inputs, outputs=outputs)
 

@@ -43,7 +43,7 @@ def albert(config: BertConfig,
     input_ids = keras.Input(shape=(None,))
     token_type_ids = keras.Input(shape=(None,))
     input_mask = tf.cast(x=tf.math.equal(input_ids, 0), dtype=tf.float32)[:, tf.newaxis, tf.newaxis, :]
-    initializer = keras.initializers.TruncatedNormal(stddev=0.02)
+    initializer = keras.initializers.TruncatedNormal(stddev=config.initializer_range)
 
     config = copy.deepcopy(config)
     if not is_training:
@@ -67,7 +67,7 @@ def albert(config: BertConfig,
         max_position=config.max_position,
         position_merge_mode=position_merge_mode,
         hierarchical_position=config.hierarchical_position,
-        segment_vocab_size=config.segment_vocab_size,
+        type_vocab_size=config.type_vocab_size,
         layer_norm_eps=config.layer_norm_eps
     )([input_ids, token_type_ids])
 

@@ -29,19 +29,19 @@ class BertConfig(object):
                  attention_key_size: int = None,
                  max_position: int = 512,
                  layer_norm_eps: float = 1e-12,
-                 segment_vocab_size: int = 2,
+                 type_vocab_size: int = 2,
                  hidden_dropout_prob: float = 0.1,
                  attention_probs_dropout_prob: float = 0.1,
                  shared_segment_embeddings: bool = False,
                  hierarchical_position: Any = False,
                  intermediate_size: int = 3072,
                  hidden_act: Any = "gelu",
-
-                 max_position_embeddings: int = 512,
-                 max_relative_position: int = 64,
                  initializer_range: float = 0.02,
-                 pad_token_id: int = 0,
                  use_relative_position: bool = False,
+                 max_position_embeddings: int = 512,
+                 max_relative_positions: int = 64,
+
+                 pad_token_id: int = 0,
                  segment_type: str = "absolute",
                  use_mean_pooling: bool = False,
                  **kwargs):
@@ -55,18 +55,19 @@ class BertConfig(object):
         :param attention_key_size: Attention中Q,K的head_size
         :param max_position: 绝对位置编码最大位置数
         :param layer_norm_eps: layer norm 附加因子，避免除零
-        :param segment_vocab_size: segment_ids的词典大小
+        :param type_vocab_size: segment_ids的词典大小
         :param hidden_dropout_prob: embedding、encoder和pool层中的全连接层dropout
         :param attention_probs_dropout_prob: attention的dropout
         :param shared_segment_embeddings: segment是否共享token embedding
         :param hierarchical_position: 是否层次分解位置编码
         :param intermediate_size: 前馈神经网络层维度
         :param hidden_act: encoder和pool中的非线性激活函数
-
-        :param max_relative_position: 相对位置编码最大位置数
         :param initializer_range: truncated_normal_initializer初始化方法的stdev
-        :param pad_token_id: 用于padding的token id
         :param use_relative_position: 是否使用相对位置编码
+        :param max_position_embeddings: 最大编码位置
+        :param max_relative_positions: 相对位置编码最大位置数
+
+        :param pad_token_id: 用于padding的token id
         :param segment_type: 相对位置还是绝对位置
         :param use_mean_pooling: 是否增加pool输出层
         """
@@ -79,19 +80,19 @@ class BertConfig(object):
         self.attention_key_size = attention_key_size
         self.max_position = max_position
         self.layer_norm_eps = layer_norm_eps
-        self.segment_vocab_size = segment_vocab_size
+        self.type_vocab_size = type_vocab_size
         self.hidden_dropout_prob = hidden_dropout_prob
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.shared_segment_embeddings = shared_segment_embeddings
         self.hierarchical_position = hierarchical_position
         self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
-
-        self.max_position_embeddings = max_position_embeddings
-        self.max_relative_position = max_relative_position
         self.initializer_range = initializer_range
-        self.pad_token_id = pad_token_id
         self.use_relative_position = use_relative_position
+        self.max_position_embeddings = max_position_embeddings
+        self.max_relative_positions = max_relative_positions
+
+        self.pad_token_id = pad_token_id
         self.segment_type = segment_type
         self.use_mean_pooling = use_mean_pooling
 
@@ -101,9 +102,12 @@ class BertConfig(object):
         :param json_obj: 字典对象
         :return: BertConfig
         """
-        bert_config = BertConfig(vocab_size=0)
+        bert_config = BertConfig()
         for (key, value) in json_obj.items():
-            bert_config.__dict__[key] = value
+            if key == "relative_attention":
+                bert_config.use_relative_position = value
+            else:
+                bert_config.__dict__[key] = value
 
         return bert_config
 
