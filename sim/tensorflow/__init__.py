@@ -58,7 +58,7 @@ def bert_variable_mapping(num_hidden_layers: int):
 
 
 def albert_variable_mapping():
-    """映射到ALBERT权重格式
+    """映射到官方ALBERT权重格式
     """
     mapping = {
         "embedding-token/embeddings": "bert/embeddings/word_embeddings",
@@ -100,3 +100,9 @@ def albert_variable_mapping():
     })
 
     return mapping
+
+
+def deberta_variable_mapping():
+    """映射到官方DeBERTa权重格式
+    """
+    pass

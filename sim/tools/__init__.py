@@ -20,39 +20,38 @@ class BertConfig(object):
     """BertModel的配置"""
 
     def __init__(self,
-                 vocab_size: int = 30522,
-                 embedding_size: int = 768,
-                 hidden_size: int = 768,
-                 num_attention_heads: int = 12,
-                 num_hidden_layers: int = 12,
+                 vocab_size: int,
+                 hidden_size: int,
+                 num_attention_heads: int,
+                 num_hidden_layers: int,
+                 intermediate_size: int,
+                 hidden_act: Any,
+                 embedding_size: int = None,
                  attention_head_size: int = None,
                  attention_key_size: int = None,
-                 max_position: int = 512,
-                 layer_norm_eps: float = 1e-12,
-                 type_vocab_size: int = 2,
-                 hidden_dropout_prob: float = 0.1,
-                 attention_probs_dropout_prob: float = 0.1,
+                 max_position_embeddings: int = None,
+                 max_position: int = None,
+                 layer_norm_eps: float = 1e-7,
+                 type_vocab_size: int = None,
+                 hidden_dropout_prob: float = None,
+                 attention_probs_dropout_prob: float = None,
                  shared_segment_embeddings: bool = False,
                  hierarchical_position: Any = False,
-                 intermediate_size: int = 3072,
-                 hidden_act: Any = "gelu",
-                 initializer_range: float = 0.02,
+                 initializer_range: float = None,
                  use_relative_position: bool = False,
-                 max_position_embeddings: int = 512,
-                 max_relative_positions: int = 64,
-
-                 pad_token_id: int = 0,
-                 segment_type: str = "absolute",
-                 use_mean_pooling: bool = False,
+                 max_relative_positions: int = None,
                  **kwargs):
         """构建BertConfig
         :param vocab_size: 词表大小
-        :param embedding_size: 词嵌入大小
         :param hidden_size: 隐藏层大小
         :param num_attention_heads: encoder中的attention层的注意力头数量
         :param num_hidden_layers: encoder的层数
+        :param intermediate_size: 前馈神经网络层维度
+        :param hidden_act: encoder和pool中的非线性激活函数
+        :param embedding_size: 词嵌入大小
         :param attention_head_size: Attention中V的head_size
         :param attention_key_size: Attention中Q,K的head_size
+        :param max_position_embeddings: 最大编码位置
         :param max_position: 绝对位置编码最大位置数
         :param layer_norm_eps: layer norm 附加因子，避免除零
         :param type_vocab_size: segment_ids的词典大小
@@ -60,41 +59,30 @@ class BertConfig(object):
         :param attention_probs_dropout_prob: attention的dropout
         :param shared_segment_embeddings: segment是否共享token embedding
         :param hierarchical_position: 是否层次分解位置编码
-        :param intermediate_size: 前馈神经网络层维度
-        :param hidden_act: encoder和pool中的非线性激活函数
         :param initializer_range: truncated_normal_initializer初始化方法的stdev
         :param use_relative_position: 是否使用相对位置编码
-        :param max_position_embeddings: 最大编码位置
         :param max_relative_positions: 相对位置编码最大位置数
-
-        :param pad_token_id: 用于padding的token id
-        :param segment_type: 相对位置还是绝对位置
-        :param use_mean_pooling: 是否增加pool输出层
         """
         self.vocab_size = vocab_size
-        self.embedding_size = embedding_size
         self.hidden_size = hidden_size
         self.num_attention_heads = num_attention_heads
         self.num_hidden_layers = num_hidden_layers
-        self.attention_head_size = attention_head_size or hidden_size // num_attention_heads
-        self.attention_key_size = attention_key_size
-        self.max_position = max_position
-        self.layer_norm_eps = layer_norm_eps
-        self.type_vocab_size = type_vocab_size
-        self.hidden_dropout_prob = hidden_dropout_prob
-        self.attention_probs_dropout_prob = attention_probs_dropout_prob
-        self.shared_segment_embeddings = shared_segment_embeddings
-        self.hierarchical_position = hierarchical_position
         self.intermediate_size = intermediate_size
         self.hidden_act = hidden_act
+        self.embedding_size = embedding_size or hidden_size
+        self.attention_head_size = attention_head_size or hidden_size // num_attention_heads
+        self.attention_key_size = attention_key_size or self.attention_head_size
+        self.max_position_embeddings = max_position_embeddings
+        self.max_position = max_position or self.max_position_embeddings
+        self.layer_norm_eps = layer_norm_eps
+        self.type_vocab_size = type_vocab_size
+        self.hidden_dropout_prob = hidden_dropout_prob or 0
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob or 0
+        self.shared_segment_embeddings = shared_segment_embeddings
+        self.hierarchical_position = hierarchical_position
         self.initializer_range = initializer_range
         self.use_relative_position = use_relative_position
-        self.max_position_embeddings = max_position_embeddings
         self.max_relative_positions = max_relative_positions
-
-        self.pad_token_id = pad_token_id
-        self.segment_type = segment_type
-        self.use_mean_pooling = use_mean_pooling
 
     @classmethod
     def from_dict(cls, json_obj):
@@ -102,7 +90,7 @@ class BertConfig(object):
         :param json_obj: 字典对象
         :return: BertConfig
         """
-        bert_config = BertConfig()
+        bert_config = BertConfig(**json_obj)
         for (key, value) in json_obj.items():
             if key == "relative_attention":
                 bert_config.use_relative_position = value

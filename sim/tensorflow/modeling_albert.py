@@ -73,7 +73,7 @@ def albert(config: BertConfig,
 
     bert_layer = BertLayer(config=config, batch_size=batch_size, name="bert-layer")
     for index in range(config.num_hidden_layers):
-        outputs = bert_layer(outputs, input_mask)
+        outputs = bert_layer([outputs, input_mask])
 
     if add_pooling_layer:
         argument = {}

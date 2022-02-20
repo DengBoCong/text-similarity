@@ -233,7 +233,7 @@ def make_log_bucket_position(relative_pos: Any, bucket_size: int, max_position: 
 
 
 @lru_cache(maxsize=128)
-def build_relative_position_deberta(query_size, key_size, bucket_size=-1, max_position=-1):
+def build_relative_position_deberta(query_size, key_size, bucket_size: int = -1, max_position: int = -1):
     """DeBERTa的相对位置编码"""
     q_ids = np.arange(0, query_size)
     k_ids = np.arange(0, key_size)
