@@ -1,0 +1,252 @@
+#! -*- coding: utf-8 -*-
+""" Pytorch Bert Common Modules
+"""
+# Author: DengBoCong <bocongdeng@gmail.com>
+#
+# License: MIT License
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import copy
+import torch
+import torch.nn as nn
+from sim.pytorch.common import truncated_normal_
+from sim.pytorch.layers import BertOutput
+from sim.pytorch.layers import BertSelfAttention
+from sim.pytorch.layers import Embedding
+from sim.pytorch.layers import FeedForward
+from sim.pytorch.layers import PositionEmbedding
+from sim.tools import BertConfig
+from typing import Any
+
+
+class BertEmbeddings(nn.Module):
+    """Bert Embedding
+    """
+
+    def __init__(self,
+                 hidden_size: int,
+                 embedding_size: int,
+                 token_embeddings: Any,
+                 hidden_dropout_prob: float = None,
+                 shared_segment_embeddings: bool = False,
+                 max_position: int = 512,
+                 position_merge_mode: str = "add",
+                 hierarchical_position: Any = None,
+                 type_vocab_size: int = 2,
+                 layer_norm_eps: float = 1e-12,
+                 initializer: Any = truncated_normal_(),
+                 position_ids: Any = None):
+        """Bert Embedding
+        :param hidden_size: 编码维度
+        :param embedding_size: 词嵌入大小
+        :param token_embeddings: word embedding
+        :param hidden_dropout_prob: Dropout比例
+        :param shared_segment_embeddings: 若True，则segment跟token共用embedding
+        :param max_position: 绝对位置编码最大位置数
+        :param position_merge_mode: 输入和position合并的方式
+        :param hierarchical_position: 是否层次分解位置编码
+        :param type_vocab_size: segment总数目
+        :param layer_norm_eps: layer norm 附加因子，避免除零
+        :param initializer: Embedding的初始化器
+        :param position_ids: 位置编码ids
+        """
+        super(BertEmbeddings, self).__init__()
+        self.hidden_size = hidden_size
+        self.embedding_size = embedding_size
+        self.token_embeddings = token_embeddings
+        self.hidden_dropout_prob = hidden_dropout_prob
+        self.shared_segment_embeddings = shared_segment_embeddings
+        self.max_position = max_position
+        self.position_merge_mode = position_merge_mode
+        self.hierarchical_position = hierarchical_position
+        self.type_vocab_size = type_vocab_size
+        self.layer_norm_eps = layer_norm_eps
+        self.initializer = initializer
+        self.position_ids = position_ids
+
+        if self.type_vocab_size > 0 and not self.shared_segment_embeddings:
+            self.segment_embeddings = nn.Embedding(
+                num_embeddings=self.type_vocab_size,
+                embedding_dim=self.embedding_size
+            )
+            self.initializer(self.segment_embeddings.weight)
+
+        self.position_embeddings = PositionEmbedding(
+            input_dim=self.max_position,
+            output_dim=self.embedding_size,
+            merge_mode=self.position_merge_mode,
+            hierarchical=self.hierarchical_position,
+            custom_position_ids=self.position_ids is not None,
+            initializer=self.initializer
+        )
+
+        self.layer_norm = nn.LayerNorm(normalized_shape=self.embedding_size, eps=self.layer_norm_eps)
+        self.dropout = nn.Dropout(p=self.hidden_dropout_prob)
+
+        if self.embedding_size != self.hidden_size:
+            self.outputs_dense = nn.Linear(in_features=self.embedding_size, out_features=self.hidden_size)
+
+    def forward(self, input_ids, segment_ids):
+        outputs = self.token_embeddings(input_ids)
+
+        if self.type_vocab_size > 0:
+            if self.shared_segment_embeddings:
+                segment_outputs = self.token_embeddings(segment_ids)
+            else:
+                segment_outputs = self.segment_embeddings(segment_ids)
+
+            outputs = outputs + segment_outputs
+
+        if self.position_ids is None:
+            outputs = self.position_embeddings(outputs)
+        else:
+            outputs = self.position_embeddings([outputs, self.position_ids])
+
+        outputs = self.layer_norm(outputs)
+        outputs = self.dropout(outputs)
+
+        if self.embedding_size != self.hidden_size:
+            outputs = self.outputs_dense(outputs)
+
+        return outputs
+
+
+class BertLayer(nn.Module):
+    """Bert Block
+    """
+
+    def __init__(self, config: BertConfig, batch_size: int, initializer: Any = None):
+        """
+        :param config: BertConfig实例
+        :param batch_size: batch size
+        :param initializer: 初始化器
+        """
+        super(BertLayer, self).__init__()
+        self.bert_config = config
+        self.batch_size = batch_size
+        self.initializer = initializer if initializer else truncated_normal_(stddev=config.initializer_range)
+
+        self.bert_self_attention = BertSelfAttention(
+            num_heads=self.bert_config.num_attention_heads,
+            head_size=self.bert_config.attention_head_size,
+            batch_size=self.batch_size,
+            attention_dropout=self.bert_config.attention_probs_dropout_prob,
+            key_size=self.bert_config.attention_key_size,
+            hidden_size=self.bert_config.hidden_size,
+            initializer=self.initializer
+        )
+        self.attn_dropout = nn.Dropout(p=self.bert_config.hidden_dropout_prob)
+        self.attn_norm = nn.LayerNorm(normalized_shape=self.bert_config.hidden_size,
+                                      eps=self.bert_config.layer_norm_eps)
+        self.feedforward = FeedForward(
+            in_features=self.bert_config.hidden_size,
+            mid_features=self.bert_config.intermediate_size,
+            out_features=self.bert_config.hidden_size,
+            activation=self.bert_config.hidden_act,
+            initializer=self.initializer
+        )
+
+        self.feedforward_dropout = nn.Dropout(p=self.bert_config.hidden_dropout_prob)
+        self.feedforward_norm = nn.LayerNorm(normalized_shape=self.bert_config.hidden_size,
+                                             eps=self.bert_config.layer_norm_eps)
+
+    def forward(self, inputs, mask):
+        attn_outputs, attn_weights = self.bert_self_attention([inputs, inputs, inputs, mask])
+        attn_outputs = self.attn_dropout(attn_outputs)
+        attn_outputs = attn_outputs + inputs
+        attn_outputs = self.attn_norm(attn_outputs)
+
+        outputs = self.feedforward(attn_outputs)
+        outputs = self.feedforward_dropout(outputs)
+        outputs = outputs + attn_outputs
+        outputs = self.feedforward_norm(outputs)
+
+        return outputs
+
+
+class BertModel(nn.Module):
+    """Bert Model
+    """
+
+    def __init__(self,
+                 config: BertConfig,
+                 batch_size: int,
+                 position_merge_mode: str = "add",
+                 is_training: bool = True,
+                 add_pooling_layer: bool = True,
+                 with_pool: Any = False,
+                 with_nsp: Any = False,
+                 with_mlm: Any = False):
+        """
+        :param config: BertConfig实例
+        :param batch_size: batch size
+        :param position_merge_mode: 输入和position合并的方式
+        :param is_training: train/eval
+        :param add_pooling_layer: 处理输出，后面三个参数用于此
+        :param with_pool: 是否包含Pool部分, 必传hidden_size
+        :param with_nsp: 是否包含NSP部分
+        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, token_embeddings
+        """
+        super(BertModel, self).__init__()
+        self.config = copy.deepcopy(config)
+        if not is_training:
+            self.config.hidden_dropout_prob = 0.0
+            self.config.attention_prob_dropout_prob = 0.0
+
+        self.batch_size = batch_size
+        self.position_merge_mode = position_merge_mode
+        self.is_training = is_training
+        self.add_pooling_layer = add_pooling_layer
+        self.with_pool = with_pool
+        self.with_nsp = with_nsp
+        self.with_mlm = with_mlm
+
+        self.initializer = truncated_normal_(mean=0., stddev=self.config.initializer_range)
+        self.token_embeddings = Embedding(num_embeddings=self.config.vocab_size,
+                                          embedding_dim=self.config.embedding_size, padding_idx=0)
+        self.initializer(self.token_embeddings.weight)
+
+        self.bert_embeddings = BertEmbeddings(
+            hidden_size=self.config.hidden_size,
+            embedding_size=self.config.embedding_size,
+            token_embeddings=self.token_embeddings,
+            hidden_dropout_prob=self.config.hidden_dropout_prob,
+            shared_segment_embeddings=self.config.shared_segment_embeddings,
+            max_position=self.config.max_position,
+            position_merge_mode=self.position_merge_mode,
+            hierarchical_position=self.config.hierarchical_position,
+            type_vocab_size=self.config.type_vocab_size,
+            layer_norm_eps=self.config.layer_norm_eps,
+            initializer=self.initializer
+        )
+
+        for index in range(self.config.num_hidden_layers):
+            setattr(self, f"bert_layer_{index}", BertLayer(
+                config=self.config, batch_size=self.batch_size, initializer=self.initializer
+            ))
+
+        if self.add_pooling_layer:
+            argument = {}
+            if with_mlm:
+                argument["embedding_size"] = self.config.embedding_size
+                argument["hidden_act"] = self.config.hidden_act
+                argument["layer_norm_eps"] = self.config.layer_norm_eps
+                argument["vocab_dense_layer"] = self.token_embeddings
+
+            self.bert_output = BertOutput(with_pool, with_nsp, with_mlm,
+                                          self.initializer, self.config.hidden_size, **argument)
+
+    def forward(self, input_ids, token_type_ids):
+        input_mask = torch.eq(input=input_ids, other=0).float()[:, None, None, :]
+
+        outputs = self.bert_embeddings(input_ids, token_type_ids)
+        for index in range(self.config.num_hidden_layers):
+            outputs = getattr(self, f"bert_layer_{index}")(outputs, input_mask)
+
+        if self.add_pooling_layer:
+            outputs = self.bert_output(outputs)
+
+        return outputs

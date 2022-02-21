@@ -11,7 +11,7 @@ from __future__ import print_function
 
 import json
 import torch
-import torch.optim
+import torch.nn as nn
 from datetime import datetime
 from sim.pytorch.modeling_siamese_rnn import SiameseRnnWithEmbedding
 from sim.tools.data_processor.data_format import NormalDataGenerator
@@ -22,82 +22,35 @@ from sim.tools.tools import get_logger
 from sim.tools.tools import save_model_config
 from sim.pytorch.common import Checkpoint
 from sim.pytorch.common import set_seed
-from sim.tools.pipeline import NormalPipeline
+from sim.pytorch.pipeline import TextPairPipeline
 from typing import Any
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
-class TextPairPipeline(NormalPipeline):
-    def __init__(self, model: list, batch_size: int):
+class CustomPipeline(TextPairPipeline):
+    def __init__(self, model: list, batch_size: int, device: Any, dtype: Any):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param batch_size: batch size
+        :param device: 设备
+        :param dtype: 类型
         """
-        super(TextPairPipeline, self).__init__(model, batch_size)
+        super(CustomPipeline, self).__init__(model, batch_size, device, dtype)
 
-    def _train_step(self, batch_dataset: dict, optimizer: torch.optim.Optimizer, *args, **kwargs) -> dict:
-        """ 训练步
-        :param batch_dataset: 训练步的当前batch数据
-        :param optimizer: 优化器
-        :return: 返回所得指标字典
+    def _metrics(self, y_true: Any, y_pred: Any):
+        """指标计算
+        :param y_true: 真实标签
+        :param y_pred: 预测值
         """
-        inputs1 = torch.from_numpy(batch_dataset["inputs1"]).permute(1, 0)
-        inputs2 = torch.from_numpy(batch_dataset["inputs2"]).permute(1, 0)
-        labels = torch.from_numpy(batch_dataset["labels"])
+        outputs1, outputs2 = y_pred
+        cos_sim = torch.cosine_similarity(outputs1, outputs2)
+        cos_sim = torch.sigmoid(cos_sim)
+        loss = nn.BCELoss()(cos_sim, y_true)
+        accuracy = torch.ge(cos_sim, 0.6).sum(dim=-1).div(self.batch_size)
 
-        state1, state2 = self.model[0](inputs1, inputs2)
-
-        diff = torch.sum(torch.abs(torch.sub(state1, state2)), dim=1)
-        sim = torch.exp(-1.0 * diff)
-        pred = torch.square(torch.sub(sim, labels))
-        loss = torch.sum(pred)
-        accuracy = 0.
-        for label, i in zip(labels, sim):
-            sim_value = 0. if i < 0.5 else 1.
-            accuracy += 1. if label == sim_value else 0.
-
-        optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model[0].parameters(), 1.)
-        optimizer.step()
-
-        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy / self.batch_size}
-
-    def _valid_step(self, batch_dataset: dict, *args, **kwargs) -> dict:
-        """ 验证步
-        :param batch_dataset: 验证步的当前batch数据
-        """
-        with torch.no_grad():
-            inputs1 = torch.from_numpy(batch_dataset["inputs1"]).permute(1, 0)
-            inputs2 = torch.from_numpy(batch_dataset["inputs2"]).permute(1, 0)
-            labels = torch.from_numpy(batch_dataset["labels"])
-
-            state1, state2 = self.model[0](inputs1, inputs2)
-
-            diff = torch.sum(torch.abs(torch.sub(state1, state2)), dim=1)
-            sim = torch.exp(-1.0 * diff)
-            pred = torch.square(torch.sub(sim, labels))
-            loss = torch.sum(pred)
-
-            accuracy = 0.
-            for label, i in zip(labels, sim):
-                sim_value = 0. if i < 0.5 else 1.
-                accuracy += 1. if label == sim_value else 0.
-
-        return {"train_loss": loss / self.batch_size, "train_accuracy": accuracy}
-
-    def inference(self, query1: str, query2: str) -> Any:
-        """ 推断模块
-        :param query1: 文本1
-        :param query2: 文本2
-        :return:
-        """
-        pass
-
-    def _save_model(self, *args, **kwargs) -> NoReturn:
-        pass
+        return loss, accuracy
 
 
 def actuator(config_path: str, execute_type: str) -> NoReturn:
@@ -124,6 +77,8 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
         text_pair_to_token_id(file_path=options["raw_valid_data_path"], save_path=options["valid_data_path"],
                               pad_max_len=options["vec_dim"], tokenizer=tokenizer)
     else:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
         with open(options["train_data_path"], "r", encoding="utf-8") as train_file, open(
                 options["valid_data_path"], "r", encoding="utf-8") as valid_file:
             train_generator = NormalDataGenerator(train_file.readlines(), options["batch_size"])
@@ -133,9 +88,12 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
                                         units=options["units"], dropout=options["dropout"],
                                         num_layers=options["num_layers"], rnn=options["rnn"],
                                         share=options["share"], if_bi=options["bi"])
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model, device_ids=[0, 1, 2])
+            model.to(device)
 
-        pipeline = TextPairPipeline([model], options["batch_size"])
-        history = {"train_accuracy": [], "train_loss": [], "valid_accuracy": [], "valid_loss": []}
+        pipeline = CustomPipeline([model], options["batch_size"], device, torch.IntTensor)
+        history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=options["seed"])

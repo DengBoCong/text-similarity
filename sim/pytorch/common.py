@@ -16,8 +16,32 @@ import random
 import time
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Any
 from typing import NoReturn
+
+
+def get_activation(identifier: str):
+    """获取激活函数
+    """
+    activations = {
+        "gelu": F.gelu,
+        "glu": F.glu,
+        "relu": F.relu,
+        "elu": F.elu,
+        "hardtanh": F.hardtanh,
+        "relu6": F.relu6,
+        "selu": F.selu,
+        "leaky_relu": F.leaky_relu,
+        "sigmoid": F.sigmoid,
+        "gumbel_softmax": F.gumbel_softmax,
+        "tanh": F.tanh
+    }
+
+    if identifier not in activations:
+        raise ValueError(f"{identifier} not such activation")
+
+    return activations[identifier]
 
 
 class Checkpoint(object):
@@ -121,3 +145,65 @@ class ContrastiveLoss(nn.Module):
         loss = label * 1.0 * l_1 + (1 - label) * 1.0 * l_0
 
         return loss.sum()
+
+
+def truncated_normal_(mean: float = 0.0, stddev: float = 0.02) -> Any:
+    """截尾正态分布
+    :param mean: 均值
+    :param stddev: 标准差
+    """
+
+    def _truncated_norm(tensor: Any):
+        with torch.no_grad():
+            size = tensor.shape
+            tmp = tensor.new_empty(size + (4,)).normal_()
+            valid = (tmp < 2) & (tmp > -2)
+            ind = valid.max(-1, keepdim=True)[1]
+            tensor.detach().copy_(tmp.gather(-1, ind).squeeze(-1))
+            tensor.detach().mul_(stddev).add_(mean)
+            return tensor
+
+    return _truncated_norm
+
+
+def scaled_dot_product_attention(query: Any,
+                                 key: Any,
+                                 value: Any,
+                                 batch_size: int,
+                                 num_heads: int,
+                                 attention_head_size: int,
+                                 dropout: float,
+                                 mask: Any = None,
+                                 pos_type: str = None,
+                                 pos_ids: Any = None) -> tuple:
+    """点乘注意力计算
+    :param query: (..., seq_len_q, depth)
+    :param key: (..., seq_len_k, depth)
+    :param value: (..., seq_len_v, depth_v)
+    :param batch_size: batch size
+    :param num_heads: head num
+    :param attention_head_size: 分头之后维度大小
+    :param dropout: 注意力dropout
+    :param mask: float, (..., seq_len_q, seq_len_k)
+    :param pos_type: 指定位置编码种类，现支持经典的相对位置编码: "typical_relation"
+    :param pos_ids: 位置编码
+    """
+    attention_scores = torch.matmul(input=query, other=key.permute(0, 1, 3, 2))
+    # 处理位置编码
+    if pos_type == "typical_relation":
+        attention_scores = attention_scores + torch.einsum("bhjd,kjd->bhjk", query, pos_ids)
+    attention_scores = attention_scores / torch.sqrt(input=torch.tensor(data=attention_head_size))
+
+    if mask is not None:
+        attention_scores += (mask * -1e9)
+
+    attention_weights = torch.softmax(input=attention_scores, dim=-1)
+    attention_weights = nn.Dropout(p=dropout)(attention_weights)
+
+    context_layer = torch.matmul(input=attention_weights, other=value)
+    if pos_type == "typical_relation":
+        context_layer = context_layer + torch.einsum("bhjk,jkd->bhjd", attention_weights, pos_ids)
+    context_layer = context_layer.permute(0, 2, 1, 3)
+    context_layer = torch.reshape(input=context_layer, shape=(batch_size, -1, attention_head_size * num_heads))
+
+    return context_layer, attention_weights
