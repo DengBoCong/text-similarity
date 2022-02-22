@@ -129,6 +129,8 @@ from examples.tensorflow.run_basic_bert import actuator
 actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train")
 
 # Pytorch version
+from examples.pytorch.run_basic_bert import actuator
+actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train")
 ```
 
 ### Albert

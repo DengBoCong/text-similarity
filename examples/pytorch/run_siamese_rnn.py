@@ -30,14 +30,15 @@ logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
 
 
 class CustomPipeline(TextPairPipeline):
-    def __init__(self, model: list, batch_size: int, device: Any, dtype: Any):
+    def __init__(self, model: list, batch_size: int, device: Any, inp_dtype: Any, lab_dtype: Any):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param batch_size: batch size
         :param device: 设备
-        :param dtype: 类型
+        :param inp_dtype: 输入类型
+        :param lab_dtype: 标签类型
         """
-        super(CustomPipeline, self).__init__(model, batch_size, device, dtype)
+        super(CustomPipeline, self).__init__(model, batch_size, device, inp_dtype, lab_dtype)
 
     def _metrics(self, y_true: Any, y_pred: Any):
         """指标计算
@@ -92,7 +93,7 @@ def actuator(config_path: str, execute_type: str) -> NoReturn:
             model = nn.DataParallel(model, device_ids=[0, 1, 2])
             model.to(device)
 
-        pipeline = CustomPipeline([model], options["batch_size"], device, torch.IntTensor)
+        pipeline = CustomPipeline([model], options["batch_size"], device, torch.IntTensor, torch.FloatTensor)
         history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":

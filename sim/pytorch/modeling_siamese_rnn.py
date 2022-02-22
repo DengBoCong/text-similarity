@@ -66,8 +66,8 @@ class SiameseRnnWithEmbedding(nn.Module):
         :param inputs2:
         :return:
         """
-        embedding1 = self.embedding1(inputs1)
-        embedding2 = self.embedding2(inputs2)
+        embedding1 = self.embedding1(inputs1.permute(1, 0))
+        embedding2 = self.embedding2(inputs2.permute(1, 0))
 
         dropout1 = self.dropout(embedding1)
         dropout2 = self.dropout(embedding2)
@@ -130,8 +130,8 @@ class SiameseBiRnnWithEmbedding(nn.Module):
         self.eps = cos_eps
 
     def forward(self, inputs1: Any, inputs2: Any) -> torch.Tensor:
-        embedding1 = self.embedding(inputs1)
-        embedding2 = self.embedding(inputs2)
+        embedding1 = self.embedding(inputs1.permute(1, 0))
+        embedding2 = self.embedding(inputs2.permute(1, 0))
 
         rnn_outputs1 = self.rnn_impl(embedding1)
         rnn_outputs2 = self.rnn_impl(embedding2)

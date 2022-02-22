@@ -12,8 +12,16 @@ from __future__ import print_function
 import json
 import os
 import torch
+import torch.nn as nn
 from datetime import datetime
+from sim.pytorch import bert_variable_mapping
+from sim.pytorch.common import Checkpoint
+from sim.pytorch.common import get_activation
+from sim.pytorch.common import load_bert_weights
+from sim.pytorch.common import set_seed
+from sim.pytorch.common import truncated_normal_
 from sim.pytorch.modeling_bert import BertModel
+from sim.pytorch.pipeline import TextPairPipeline
 from sim.tools import BertConfig
 from sim.tools.data_processor.data_format import NormalDataGenerator
 from sim.tools.data_processor.process_plain_text import text_to_token_id_for_bert
@@ -24,6 +32,26 @@ from sim.tools.tools import save_model_config
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
+
+
+class Model(nn.Module):
+    """组合模型适配任务
+    """
+
+    def __init__(self, bert_config: BertConfig, batch_size: int):
+        super(Model, self).__init__()
+        self.bert_model = BertModel(config=bert_config, batch_size=batch_size, with_pool=True)
+        self.class_dropout = nn.Dropout(p=0.1)
+        self.class_dense = nn.Linear(in_features=bert_config.hidden_size, out_features=2)
+        truncated_normal_(stddev=bert_config.initializer_range)(self.class_dense.weight)
+
+    def forward(self, input_ids, token_type_ids):
+        outputs = self.bert_model(input_ids, token_type_ids)
+        outputs = self.class_dropout(outputs)
+        outputs = self.class_dense(outputs)
+        outputs = get_activation("softmax")(outputs, dim=-1)
+
+        return outputs
 
 
 def actuator(model_dir: str, execute_type: str) -> NoReturn:
@@ -44,7 +72,7 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
     checkpoint_save_freq = 2
 
     config_path = os.path.join(model_dir, "bert_config.json")
-    checkpoint_path = os.path.join(model_dir, "pytorch_model.bin")
+    model_file_path = os.path.join(model_dir, "pytorch_model.bin")
     dict_path = os.path.join(model_dir, "vocab.txt")
 
     with open(config_path, "r", encoding="utf-8") as file:
@@ -74,37 +102,28 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
             valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size, random=False)
 
         bert_config = BertConfig.from_json_file(json_file_path=config_path)
-        model = BertModel(config=bert_config, batch_size=batch_size, with_pool=True)
-        for name, params in model.named_parameters():
-            print(name, params)
+        model = Model(bert_config=bert_config, batch_size=batch_size)
 
-        exit(0)
-        # model = Model()
-        #
-        # if torch.cuda.device_count() > 1:
-        #     model = nn.DataParallel(model，device_ids = [0, 1, 2])
-        #     model.to(device)
-        load_bert_weights_from_checkpoint(checkpoint_path, bert, bert_variable_mapping(bert_config.num_hidden_layers))
+        weight_dict = load_bert_weights(
+            model_file_path=model_file_path, model=model,
+            mapping=bert_variable_mapping(bert_config.num_hidden_layers, prefix_="bert_model.")
+        )
+        model.load_state_dict(state_dict=weight_dict)
 
-        outputs = keras.layers.Dropout(rate=0.1)(bert.output)
-        outputs = keras.layers.Dense(
-            units=2, activation="softmax",
-            kernel_initializer=keras.initializers.TruncatedNormal(stddev=bert_config.initializer_range)
-        )(outputs)
-        model = keras.Model(inputs=bert.inputs, outputs=outputs)
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model, device_ids=[0, 1, 2])
+            model.to(device)
 
-        checkpoint_manager = load_checkpoint(checkpoint_dir=checkpoint_dir, execute_type=execute_type,
-                                             checkpoint_save_size=checkpoint_save_size, model=model)
-
-        pipeline = TextPairPipeline([model], batch_size)
+        pipeline = TextPairPipeline([model], batch_size, device, torch.IntTensor, torch.LongTensor)
         history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=seed)
-            optimizer = keras.optimizers.Adam(learning_rate=2e-5)
+            optimizer = torch.optim.Adam(params=model.parameters(), lr=2e-5)
+            checkpoint = Checkpoint(checkpoint_dir=checkpoint_dir, optimizer=optimizer, model=model)
 
             pipeline.train(train_generator, valid_generator, epochs, optimizer,
-                           checkpoint_manager, checkpoint_save_freq, history)
+                           checkpoint, checkpoint_save_freq, history)
         elif execute_type == "evaluate":
             pipeline.evaluate(valid_generator, history)
         elif execute_type == "inference":
@@ -114,4 +133,4 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
 
 
 if __name__ == '__main__':
-    actuator(model_dir="./data/ch/bert/chinese_wwm_L-12_H-768_A-12", execute_type="train")
+    actuator(model_dir="./data/ch/bert/chinese_wwm_pytorch", execute_type="train")

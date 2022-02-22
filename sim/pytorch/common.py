@@ -17,6 +17,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections import OrderedDict
 from typing import Any
 from typing import NoReturn
 
@@ -35,13 +36,70 @@ def get_activation(identifier: str):
         "leaky_relu": F.leaky_relu,
         "sigmoid": F.sigmoid,
         "gumbel_softmax": F.gumbel_softmax,
-        "tanh": F.tanh
+        "tanh": torch.tanh,
+        "softmax": F.softmax
     }
 
     if identifier not in activations:
         raise ValueError(f"{identifier} not such activation")
 
     return activations[identifier]
+
+
+def load_embeddings(embeddings: torch.Tensor, keep_tokens: torch.Tensor = None, compound_tokens: list = None) -> Any:
+    """给加载与训练权重时，token不一致进行额外处理用
+    :param embeddings: 原全量embedding
+    :param keep_tokens: 要保留的词ID列表
+    :param compound_tokens: 扩展Embedding
+    """
+    if keep_tokens is not None:
+        embeddings = embeddings.index_select(dim=0, index=keep_tokens)
+
+    if compound_tokens is not None:
+        ext_embeddings = []
+        for item in compound_tokens:
+            if isinstance(item, list):
+                item = (item, [1] * len(item))
+
+            ext_embeddings.append(np.average(embeddings.index_select(dim=0, index=torch.tensor(item[0])), 0, item[1]))
+
+        embeddings = np.concatenate(arrays=[embeddings, ext_embeddings], axis=0)
+
+    return embeddings
+
+
+def load_bert_weights(model_file_path: str,
+                      model: nn.Module,
+                      mapping: dict,
+                      keep_tokens: torch.Tensor = None,
+                      compound_tokens: list = None) -> OrderedDict:
+    """根据mapping从权重文件中加载bert权重
+    :param model_file_path: 权重文件路径
+    :param model: 模型
+    :param mapping: 权重映射表
+    :param keep_tokens: 要保留的词ID列表
+    :param compound_tokens: 扩展Embedding
+    """
+    success_load_count = 0
+    model_state_dict, pretrain_state_dict = model.state_dict(), torch.load(model_file_path)
+    for k, v in model_state_dict.items():
+        if k in mapping and mapping[k] in pretrain_state_dict:
+            if mapping[k] in [
+                "bert.embeddings.word_embeddings.weight",
+                "cls.predictions.decoder.weight",
+                "cls.predictions.bias"
+            ]:
+                model_state_dict[k] = load_embeddings(pretrain_state_dict[mapping[k]], keep_tokens, compound_tokens)
+                success_load_count += 1
+            else:
+                assert model_state_dict[k].shape == pretrain_state_dict[mapping[k]].shape
+                model_state_dict[k] = pretrain_state_dict[mapping[k]]
+                success_load_count += 1
+
+    # 这里做一个权重成功加载的数量提示
+    print(f"success load weights count: {success_load_count}")
+
+    return model_state_dict
 
 
 class Checkpoint(object):
@@ -60,7 +118,7 @@ class Checkpoint(object):
         """ 保存模型检查点
         :return: 无返回值
         """
-        checkpoint_path = self.checkpoint_dir + "checkpoint"
+        checkpoint_path = os.path.join(self.checkpoint_dir, "checkpoint")
         version = 1
         if os.path.exists(checkpoint_path):
             with open(checkpoint_path, "r", encoding="utf-8") as file:
@@ -72,8 +130,8 @@ class Checkpoint(object):
             model_dict["model_state_dict"] = self.model.state_dict()
         model_dict["optimizer_state_dict"] = self.optimizer.state_dict()
 
-        model_checkpoint_path = "checkpoint-{}.pth".format(version)
-        torch.save(model_dict, self.checkpoint_dir + model_checkpoint_path)
+        model_checkpoint_path = "checkpoint-{}.bin".format(version)
+        torch.save(model_dict, os.path.join(self.checkpoint_dir, model_checkpoint_path))
         with open(checkpoint_path, "w", encoding="utf-8") as file:
             file.write(json.dumps({
                 "version": version,

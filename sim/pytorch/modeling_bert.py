@@ -29,7 +29,6 @@ class BertEmbeddings(nn.Module):
     def __init__(self,
                  hidden_size: int,
                  embedding_size: int,
-                 token_embeddings: Any,
                  hidden_dropout_prob: float = None,
                  shared_segment_embeddings: bool = False,
                  max_position: int = 512,
@@ -42,7 +41,6 @@ class BertEmbeddings(nn.Module):
         """Bert Embedding
         :param hidden_size: 编码维度
         :param embedding_size: 词嵌入大小
-        :param token_embeddings: word embedding
         :param hidden_dropout_prob: Dropout比例
         :param shared_segment_embeddings: 若True，则segment跟token共用embedding
         :param max_position: 绝对位置编码最大位置数
@@ -56,7 +54,6 @@ class BertEmbeddings(nn.Module):
         super(BertEmbeddings, self).__init__()
         self.hidden_size = hidden_size
         self.embedding_size = embedding_size
-        self.token_embeddings = token_embeddings
         self.hidden_dropout_prob = hidden_dropout_prob
         self.shared_segment_embeddings = shared_segment_embeddings
         self.max_position = max_position
@@ -89,12 +86,12 @@ class BertEmbeddings(nn.Module):
         if self.embedding_size != self.hidden_size:
             self.outputs_dense = nn.Linear(in_features=self.embedding_size, out_features=self.hidden_size)
 
-    def forward(self, input_ids, segment_ids):
-        outputs = self.token_embeddings(input_ids)
+    def forward(self, input_ids, segment_ids, token_embeddings):
+        outputs = token_embeddings(input_ids)
 
         if self.type_vocab_size > 0:
             if self.shared_segment_embeddings:
-                segment_outputs = self.token_embeddings(segment_ids)
+                segment_outputs = token_embeddings(segment_ids)
             else:
                 segment_outputs = self.segment_embeddings(segment_ids)
 
@@ -188,7 +185,7 @@ class BertModel(nn.Module):
         :param add_pooling_layer: 处理输出，后面三个参数用于此
         :param with_pool: 是否包含Pool部分, 必传hidden_size
         :param with_nsp: 是否包含NSP部分
-        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, token_embeddings
+        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, mlm_decoder
         """
         super(BertModel, self).__init__()
         self.config = copy.deepcopy(config)
@@ -212,7 +209,6 @@ class BertModel(nn.Module):
         self.bert_embeddings = BertEmbeddings(
             hidden_size=self.config.hidden_size,
             embedding_size=self.config.embedding_size,
-            token_embeddings=self.token_embeddings,
             hidden_dropout_prob=self.config.hidden_dropout_prob,
             shared_segment_embeddings=self.config.shared_segment_embeddings,
             max_position=self.config.max_position,
@@ -234,7 +230,8 @@ class BertModel(nn.Module):
                 argument["embedding_size"] = self.config.embedding_size
                 argument["hidden_act"] = self.config.hidden_act
                 argument["layer_norm_eps"] = self.config.layer_norm_eps
-                argument["vocab_dense_layer"] = self.token_embeddings
+                argument["mlm_decoder"] = self.token_embeddings
+                argument["vocab_size"] = self.config.vocab_size
 
             self.bert_output = BertOutput(with_pool, with_nsp, with_mlm,
                                           self.initializer, self.config.hidden_size, **argument)
@@ -242,7 +239,7 @@ class BertModel(nn.Module):
     def forward(self, input_ids, token_type_ids):
         input_mask = torch.eq(input=input_ids, other=0).float()[:, None, None, :]
 
-        outputs = self.bert_embeddings(input_ids, token_type_ids)
+        outputs = self.bert_embeddings(input_ids, token_type_ids, self.token_embeddings)
         for index in range(self.config.num_hidden_layers):
             outputs = getattr(self, f"bert_layer_{index}")(outputs, input_mask)
 

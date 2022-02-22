@@ -17,16 +17,18 @@ from typing import NoReturn
 
 
 class TextPairPipeline(NormalPipeline):
-    def __init__(self, model: list, batch_size: int, device: Any, dtype: Any):
+    def __init__(self, model: list, batch_size: int, device: Any, inp_dtype: Any, lab_dtype: Any):
         """
         :param model: 模型相关组件，用于train_step和valid_step中自定义使用
         :param batch_size: batch size
         :param device: 设备
-        :param dtype: 类型
+        :param inp_dtype: 输入类型
+        :param lab_dtype: 标签类型
         """
         super(TextPairPipeline, self).__init__(model, batch_size)
         self.device = device
-        self.dtype = dtype
+        self.inp_dtype = inp_dtype
+        self.lab_dtype = lab_dtype
 
     def _metrics(self, y_true: Any, y_pred: Any):
         """指标计算
@@ -44,9 +46,9 @@ class TextPairPipeline(NormalPipeline):
         :param optimizer: 优化器
         :return: 返回所得指标字典
         """
-        inputs1 = torch.from_numpy(batch_dataset["inputs1"].transpose([1, 0])).type(self.dtype).to(self.device)
-        inputs2 = torch.from_numpy(batch_dataset["inputs2"].transpose([1, 0])).type(self.dtype).to(self.device)
-        labels = torch.from_numpy(batch_dataset["labels"]).type(torch.FloatTensor).to(self.device)
+        inputs1 = torch.from_numpy(batch_dataset["inputs1"]).type(self.inp_dtype).to(self.device)
+        inputs2 = torch.from_numpy(batch_dataset["inputs2"]).type(self.inp_dtype).to(self.device)
+        labels = torch.from_numpy(batch_dataset["labels"]).type(self.lab_dtype).to(self.device)
         outputs = self.model[0](inputs1, inputs2)
         loss, accuracy = self._metrics(labels, outputs)
 
@@ -60,9 +62,9 @@ class TextPairPipeline(NormalPipeline):
         """ 验证步
         :param batch_dataset: 验证步的当前batch数据
         """
-        inputs1 = torch.from_numpy(batch_dataset["inputs1"].transpose([1, 0])).type(self.dtype).to(self.device)
-        inputs2 = torch.from_numpy(batch_dataset["inputs2"].transpose([1, 0])).type(self.dtype).to(self.device)
-        labels = torch.from_numpy(batch_dataset["labels"]).type(torch.FloatTensor).to(self.device)
+        inputs1 = torch.from_numpy(batch_dataset["inputs1"]).type(self.inp_dtype).to(self.device)
+        inputs2 = torch.from_numpy(batch_dataset["inputs2"]).type(self.inp_dtype).to(self.device)
+        labels = torch.from_numpy(batch_dataset["labels"]).type(self.lab_dtype).to(self.device)
         with torch.no_grad():
             outputs = self.model[0](inputs1, inputs2)
             loss, accuracy = self._metrics(labels, outputs)

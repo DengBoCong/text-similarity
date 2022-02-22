@@ -284,19 +284,19 @@ class BertOutput(nn.Module):
                  embedding_size: int = None,
                  hidden_act: str = None,
                  layer_norm_eps: float = None,
-                 vocab_dense_layer: Any = None,
+                 mlm_decoder: Any = None,
                  vocab_size: int = None):
         """
         :param with_pool: 是否包含Pool部分, 必传hidden_size
         :param with_nsp: 是否包含NSP部分
-        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, vocab_dense_layer
+        :param with_mlm: 是否包含MLM部分, 必传embedding_size, hidden_act, layer_norm_eps, mlm_decoder
         :param initializer: 初始化器
         :param hidden_size: 隐藏层大小
         :param embedding_size: 词嵌入大小
         :param hidden_act: encoder和pool中的非线性激活函数
         :param layer_norm_eps: layer norm 附加因子，避免除零
-        :param vocab_dense_layer: 用于给mlm做vocab分类的层，可训练，相当于无bias的dense
-        :param vocab_size: vocab_dense_layer必传
+        :param mlm_decoder: 用于给mlm做vocab分类的层，可训练，相当于无bias的dense
+        :param vocab_size: mlm_decoder必传
         """
         super(BertOutput, self).__init__()
         self.with_pool = with_pool
@@ -306,7 +306,7 @@ class BertOutput(nn.Module):
         self.hidden_size = hidden_size
 
         if self.with_pool:
-            self.pool_activation = "tanh" if with_pool is True else with_pool
+            self.pool_activation = {"act": "tanh", "arg": {}} if with_pool is True else with_pool
             self.pooler_dense = nn.Linear(in_features=self.hidden_size, out_features=self.hidden_size)
             self.initializer(self.pooler_dense.weight)
 
@@ -315,11 +315,11 @@ class BertOutput(nn.Module):
                 self.initializer(self.nsp_prob.weight)
 
         if self.with_mlm:
-            self.mlm_activation = "softmax" if with_mlm is True else with_mlm
+            self.mlm_activation = {"act": "softmax", "arg": {"dim": -1}} if with_mlm is True else with_mlm
             self.embedding_size = embedding_size
             self.hidden_act = hidden_act
             self.layer_norm_eps = layer_norm_eps
-            self.vocab_dense_layer = vocab_dense_layer
+            self.mlm_decoder = mlm_decoder
 
             self.mlm_dense = nn.Linear(in_features=self.hidden_size, out_features=self.embedding_size)
             self.initializer(self.mlm_dense.weight)
@@ -331,20 +331,20 @@ class BertOutput(nn.Module):
         if self.with_pool:
             sub_outputs = inputs[:, 0]
             sub_outputs = self.pooler_dense(sub_outputs)
-            sub_outputs = get_activation(self.pool_activation)(sub_outputs)
+            sub_outputs = get_activation(self.pool_activation["act"])(sub_outputs, **self.pool_activation["arg"])
 
             if self.with_nsp:
                 sub_outputs = self.nsp_prob(sub_outputs)
-                sub_outputs = get_activation("softmax")(sub_outputs)
+                sub_outputs = get_activation("softmax")(sub_outputs, dim=-1)
             outputs.append(sub_outputs)
 
         if self.with_mlm:
             sub_outputs = self.mlm_dense(inputs)
             sub_outputs = get_activation(self.hidden_act)(sub_outputs)
             sub_outputs = self.mlm_norm(sub_outputs)(sub_outputs)
-            sub_outputs = self.vocab_dense_layer(sub_outputs, mode="dense")
+            sub_outputs = self.mlm_decoder(sub_outputs, mode="dense")
             sub_outputs = self.mlm_bias(sub_outputs)
-            sub_outputs = get_activation(self.mlm_activation)(sub_outputs)
+            sub_outputs = get_activation(self.mlm_activation["act"])(sub_outputs, **self.mlm_activation["arg"])
             outputs.append(sub_outputs)
 
         if not outputs:
