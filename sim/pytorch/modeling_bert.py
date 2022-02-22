@@ -231,6 +231,7 @@ class BertModel(nn.Module):
                 argument["hidden_act"] = self.config.hidden_act
                 argument["layer_norm_eps"] = self.config.layer_norm_eps
                 argument["mlm_decoder"] = self.token_embeddings
+                argument["mlm_decoder_arg"] = {"mode": "dense"}
                 argument["vocab_size"] = self.config.vocab_size
 
             self.bert_output = BertOutput(with_pool, with_nsp, with_mlm,

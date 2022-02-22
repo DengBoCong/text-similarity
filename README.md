@@ -12,7 +12,7 @@
 </div>
 
 # Overview
-+ **Dataset**: 中文/英文 Corpus, ☞  [点这里](https://github.com/DengBoCong/text-similarity/tree/main/corpus)
++ **Dataset**: 中文/English 语料, ☞  [点这里](https://github.com/DengBoCong/text-similarity/tree/main/corpus)
 + **Paper**: 相关论文详解, ☞  [点这里](https://github.com/DengBoCong/nlp-paper)
 + **The implemented method is as follows:**：
    + TF-IDF
@@ -141,6 +141,8 @@ from examples.tensorflow.run_albert import actuator
 actuator(model_dir="./data/albert_small_zh_google", execute_type="train")
 
 # Pytorch version
+from examples.pytorch.run_albert import actuator
+actuator(model_dir="./data/albert_chinese_small", execute_type="train")
 ```
 
 ### NEZHA
@@ -173,5 +175,17 @@ actuator(model_dir="./data/chinese_roberta_L-6_H-384_A-12", execute_type="train"
 # Pytorch version
 ```
 
+# Cite
+```
+@misc{text-similarity,
+  title={text-similarity},
+  author={Bocong Deng},
+  year={2021},
+  howpublished={\url{https://github.com/DengBoCong/text-similarity}},
+}
+```
+
 # Reference
++ [bert4keras](https://github.com/bojone/bert4keras/)
++ [albert_zh](https://github.com/brightmart/albert_zh)
 + [Self-Attention with Relative Position Representations](https://arxiv.org/pdf/1803.02155.pdf)

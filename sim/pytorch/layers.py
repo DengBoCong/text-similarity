@@ -285,6 +285,7 @@ class BertOutput(nn.Module):
                  hidden_act: str = None,
                  layer_norm_eps: float = None,
                  mlm_decoder: Any = None,
+                 mlm_decoder_arg: dict = None,
                  vocab_size: int = None):
         """
         :param with_pool: 是否包含Pool部分, 必传hidden_size
@@ -296,6 +297,7 @@ class BertOutput(nn.Module):
         :param hidden_act: encoder和pool中的非线性激活函数
         :param layer_norm_eps: layer norm 附加因子，避免除零
         :param mlm_decoder: 用于给mlm做vocab分类的层，可训练，相当于无bias的dense
+        :param
         :param vocab_size: mlm_decoder必传
         """
         super(BertOutput, self).__init__()
@@ -320,6 +322,7 @@ class BertOutput(nn.Module):
             self.hidden_act = hidden_act
             self.layer_norm_eps = layer_norm_eps
             self.mlm_decoder = mlm_decoder
+            self.mlm_decoder_arg = {} if mlm_decoder_arg is None else mlm_decoder_arg
 
             self.mlm_dense = nn.Linear(in_features=self.hidden_size, out_features=self.embedding_size)
             self.initializer(self.mlm_dense.weight)
@@ -342,7 +345,7 @@ class BertOutput(nn.Module):
             sub_outputs = self.mlm_dense(inputs)
             sub_outputs = get_activation(self.hidden_act)(sub_outputs)
             sub_outputs = self.mlm_norm(sub_outputs)(sub_outputs)
-            sub_outputs = self.mlm_decoder(sub_outputs, mode="dense")
+            sub_outputs = self.mlm_decoder(sub_outputs, **self.mlm_decoder_arg)
             sub_outputs = self.mlm_bias(sub_outputs)
             sub_outputs = get_activation(self.mlm_activation["act"])(sub_outputs, **self.mlm_activation["arg"])
             outputs.append(sub_outputs)
