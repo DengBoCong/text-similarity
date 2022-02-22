@@ -28,8 +28,8 @@ def bert_embedding(hidden_size: int,
                    token_embeddings: Any,
                    hidden_dropout_prob: float = None,
                    shared_segment_embeddings: bool = False,
-                   type_vocab_size: int = 2,
-                   layer_norm_eps: float = 1e-12,
+                   type_vocab_size: int = None,
+                   layer_norm_eps: float = None,
                    initializer: Any = None,
                    name: str = "embedding") -> keras.Model:
     """NeZha Embedding

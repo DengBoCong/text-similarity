@@ -31,11 +31,11 @@ class BertEmbeddings(nn.Module):
                  embedding_size: int,
                  hidden_dropout_prob: float = None,
                  shared_segment_embeddings: bool = False,
-                 max_position: int = 512,
+                 max_position: int = None,
                  position_merge_mode: str = "add",
                  hierarchical_position: Any = None,
-                 type_vocab_size: int = 2,
-                 layer_norm_eps: float = 1e-12,
+                 type_vocab_size: int = None,
+                 layer_norm_eps: float = None,
                  initializer: Any = truncated_normal_(),
                  position_ids: Any = None):
         """Bert Embedding
