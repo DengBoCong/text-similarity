@@ -86,6 +86,47 @@ class PositionEmbedding(nn.Module):
             return torch.cat(tensors=(inputs, embeddings), dim=-1)
 
 
+class RelativePositionEmbedding(nn.Module):
+    """定义相对位置编码：https://arxiv.org/abs/1803.02155
+    """
+
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 initializer: Any = truncated_normal_(),
+                 requires_grad: bool = False,
+                 device: Any = None,
+                 dtype: Any = None):
+        """
+        :param input_dim: 输入维度
+        :param output_dim: 输出维度
+        :param initializer: 初始化器
+        :param requires_grad: 是否可训练
+        :param device: 机器
+        :param dtype: 类型
+        """
+        factory_kwargs = {"device": device, "dtype": dtype}
+        super(RelativePositionEmbedding, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.initializer = initializer
+
+        self.weight = nn.Parameter(data=torch.empty((self.input_dim, self.output_dim),
+                                                    requires_grad=requires_grad, **factory_kwargs))
+        self.initializer(self.weight)
+
+    def forward(self, query, value):
+        # 计算位置差
+        query_idx = torch.arange(0, query.shape[1])[:, None]
+        value_idx = torch.arange(0, value.shape[1])[None, :]
+        pos_ids = value_idx - query_idx
+
+        max_position = (self.input_dim - 1) // 2
+        pos_ids = torch.clamp(pos_ids, -max_position, max_position)
+        pos_ids = pos_ids + max_position
+        return self.weight.index_select(dim=0, index=pos_ids)
+
+
 class BertSelfAttention(nn.Module):
     """定义Self-Attention
     """

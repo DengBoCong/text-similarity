@@ -153,6 +153,8 @@ from examples.tensorflow.run_nezha import actuator
 actuator(model_dir="./data/NEZHA-Base-WWM", execute_type="train")
 
 # Pytorch version
+from examples.pytorch.run_nezha import actuator
+actuator(model_dir="./data/nezha-base-wwm", execute_type="train")
 ```
 
 ### SimCSE

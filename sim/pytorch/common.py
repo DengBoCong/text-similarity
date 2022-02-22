@@ -211,7 +211,7 @@ def truncated_normal_(mean: float = 0.0, stddev: float = 0.02) -> Any:
     :param stddev: 标准差
     """
 
-    def _truncated_norm(tensor: Any):
+    def _truncated_norm(tensor: torch.Tensor):
         with torch.no_grad():
             size = tensor.shape
             tmp = tensor.new_empty(size + (4,)).normal_()
@@ -222,6 +222,28 @@ def truncated_normal_(mean: float = 0.0, stddev: float = 0.02) -> Any:
             return tensor
 
     return _truncated_norm
+
+
+def sinusoidal_init_(position: int, depth: int) -> NoReturn:
+    """Sin-Cos位置向量初始化器
+    :param position: 位置大小
+    :param depth: 位置嵌入大小
+    """
+
+    def _sinusoidal_init(tensor: torch.Tensor):
+        with torch.no_grad():
+            pos = np.arange(position)[:, np.newaxis]
+            index = np.arange(depth)[np.newaxis, :]
+
+            angle_rates = 1 / np.power(10000, (2 * (index // 2)) / np.float32(depth))
+            angle_rads = pos * angle_rates
+            angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
+            angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+
+            tensor.detach().copy_(torch.from_numpy(angle_rads))
+            return tensor
+
+    return _sinusoidal_init
 
 
 def scaled_dot_product_attention(query: Any,
