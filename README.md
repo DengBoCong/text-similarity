@@ -23,8 +23,9 @@
    + Bert Base
    + Albert
    + NEZHA
-   + SimCSE
    + RoBERTa
+   + SimCSE
+   + DeBERTa
 
 # Dependency
 ```shell
@@ -157,6 +158,18 @@ from examples.pytorch.run_nezha import actuator
 actuator(model_dir="./data/nezha-base-wwm", execute_type="train")
 ```
 
+### RoBERTa
++ [RoBERTa: A Robustly Optimized BERT Pretraining Approach](https://arxiv.org/pdf/1907.11692.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_basic_bert import actuator
+actuator(model_dir="./data/chinese_roberta_L-6_H-384_A-12", execute_type="train")
+
+# Pytorch version
+from examples.pytorch.run_basic_bert import actuator
+actuator(model_dir="./data/chinese-roberta-wwm-ext", execute_type="train")
+```
+
 ### SimCSE
 + [SimCSE: Simple Contrastive Learning of Sentence Embeddings](https://arxiv.org/pdf/2104.08821.pdf)
 ```python
@@ -165,14 +178,14 @@ from examples.tensorflow.run_simcse import actuator
 actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", model_type="bert")
 
 # Pytorch version
+from examples.pytorch.run_simcse import actuator
+actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
 ```
 
-### RoBERTa
-+ [RoBERTa: A Robustly Optimized BERT Pretraining Approach](https://arxiv.org/pdf/1907.11692.pdf)
+### DeBERTa
++ [DeBERTa: Decoding-Enhanced Bert With Disentangled Attention](https://arxiv.org/pdf/2006.03654.pdf)
 ```python
 # TensorFlow version
-from examples.tensorflow.run_basic_bert import actuator
-actuator(model_dir="./data/chinese_roberta_L-6_H-384_A-12", execute_type="train")
 
 # Pytorch version
 ```
@@ -190,4 +203,5 @@ actuator(model_dir="./data/chinese_roberta_L-6_H-384_A-12", execute_type="train"
 # Reference
 + [bert4keras](https://github.com/bojone/bert4keras/)
 + [albert_zh](https://github.com/brightmart/albert_zh)
++ [HuggingFace](https://huggingface.co/)
 + [Self-Attention with Relative Position Representations](https://arxiv.org/pdf/1803.02155.pdf)

@@ -16,7 +16,6 @@ import torch.nn as nn
 from datetime import datetime
 from sim.pytorch import bert_variable_mapping
 from sim.pytorch.common import Checkpoint
-from sim.pytorch.common import get_activation
 from sim.pytorch.common import load_bert_weights
 from sim.pytorch.common import set_seed
 from sim.pytorch.common import truncated_normal_
@@ -49,7 +48,6 @@ class Model(nn.Module):
         outputs = self.bert_model(input_ids, token_type_ids)
         outputs = self.class_dropout(outputs)
         outputs = self.class_dense(outputs)
-        outputs = get_activation("softmax")(outputs, dim=-1)
 
         return outputs
 
