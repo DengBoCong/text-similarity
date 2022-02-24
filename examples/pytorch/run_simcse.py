@@ -14,6 +14,7 @@ import json
 import os
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from datetime import datetime
 from sim.pytorch import albert_variable_mapping
 from sim.pytorch import bert_variable_mapping
@@ -53,14 +54,12 @@ class SimCSEPipeline(TextPairPipeline):
         :param y_true: 真实标签
         :param y_pred: 预测值
         """
-        ids = torch.arange(0, y_pred.shape[0])
-        ids_1 = ids[None, :]
-        ids_2 = (ids + 1 - ids % 2 * 2)[:, None]
-        y_true = torch.argmax(torch.eq(ids_1, ids_2).float(), dim=-1)
-
-        y_pred = torch.norm(y_pred, p="fro", dim=1, keepdim=True)
-        sim = torch.matmul(y_pred, y_pred.permute(1, 0))
-        sim = (sim - torch.eye(y_pred.shape[0]) * 1e12) * 20
+        inp1_idx = torch.arange(0, y_pred.shape[0], 2)
+        inp2_idx = torch.arange(1, y_pred.shape[0], 2)
+        inp1 = y_pred.index_select(dim=0, index=inp1_idx)[:, None, :]
+        inp2 = y_pred.index_select(dim=0, index=inp2_idx)[None, :, :]
+        sim = F.cosine_similarity(inp1, inp2, dim=-1)
+        y_true = torch.arange(0, sim.shape[0])
 
         loss = nn.CrossEntropyLoss()(sim, y_true)
         accuracy = torch.eq(torch.argmax(sim, dim=-1), y_true).sum(dim=-1).div(self.batch_size)
@@ -111,7 +110,7 @@ class Model(nn.Module):
         elif self.pooling == "last-avg":
             outputs = self.last_block_layer_output.mean(dim=1)
         elif self.pooling == "cls":
-            outputs = self.last_block_layer_output[:, 0]
+            outputs = outputs[:, 0]
         elif self.pooling == "pooler":
             # pooler直接用输出，这里pass标记一下存在
             pass

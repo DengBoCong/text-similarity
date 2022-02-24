@@ -25,13 +25,6 @@
    + NEZHA
    + RoBERTa
    + SimCSE
-   + DeBERTa
-
-# Dependency
-```shell
-python >= 3.5
-TensorFlow 
-```
 
 # Usages
 
@@ -182,13 +175,6 @@ from examples.pytorch.run_simcse import actuator
 actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
 ```
 
-### DeBERTa
-+ [DeBERTa: Decoding-Enhanced Bert With Disentangled Attention](https://arxiv.org/pdf/2006.03654.pdf)
-```python
-# TensorFlow version
-
-# Pytorch version
-```
 
 # Cite
 ```

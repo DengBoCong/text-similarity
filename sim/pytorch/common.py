@@ -22,30 +22,6 @@ from typing import Any
 from typing import NoReturn
 
 
-def get_activation(identifier: str):
-    """获取激活函数
-    """
-    activations = {
-        "gelu": F.gelu,
-        "glu": F.glu,
-        "relu": F.relu,
-        "elu": F.elu,
-        "hardtanh": F.hardtanh,
-        "relu6": F.relu6,
-        "selu": F.selu,
-        "leaky_relu": F.leaky_relu,
-        "sigmoid": F.sigmoid,
-        "gumbel_softmax": F.gumbel_softmax,
-        "tanh": torch.tanh,
-        "softmax": F.softmax
-    }
-
-    if identifier not in activations:
-        raise ValueError(f"{identifier} not such activation")
-
-    return activations[identifier]
-
-
 def load_embeddings(embeddings: torch.Tensor, keep_tokens: torch.Tensor = None, compound_tokens: list = None) -> Any:
     """给加载与训练权重时，token不一致进行额外处理用
     :param embeddings: 原全量embedding
@@ -287,3 +263,37 @@ def scaled_dot_product_attention(query: Any,
     context_layer = torch.reshape(input=context_layer, shape=(batch_size, -1, attention_head_size * num_heads))
 
     return context_layer, attention_weights
+
+
+def swish(x):
+    return x * torch.sigmoid(x)
+
+
+def linear_act(x):
+    return x
+
+
+def get_activation(identifier: str):
+    """获取激活函数
+    """
+    activations = {
+        "gelu": F.gelu,
+        "glu": F.glu,
+        "relu": F.relu,
+        "elu": F.elu,
+        "hardtanh": F.hardtanh,
+        "relu6": F.relu6,
+        "selu": F.selu,
+        "leaky_relu": F.leaky_relu,
+        "sigmoid": F.sigmoid,
+        "gumbel_softmax": F.gumbel_softmax,
+        "tanh": torch.tanh,
+        "softmax": F.softmax,
+        "swish": swish,
+        "linear": linear_act
+    }
+
+    if identifier not in activations:
+        raise ValueError(f"{identifier} not such activation")
+
+    return activations[identifier]
