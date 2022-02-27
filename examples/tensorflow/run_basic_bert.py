@@ -103,8 +103,6 @@ def actuator(model_dir: str, execute_type: str) -> NoReturn:
                            checkpoint_manager, checkpoint_save_freq, history)
         elif execute_type == "evaluate":
             pipeline.evaluate(valid_generator, history)
-        elif execute_type == "inference":
-            pass
         else:
             raise ValueError("execute_type error")
 

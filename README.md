@@ -27,6 +27,11 @@
    + SimCSE
 
 # Usages
+```
+1：examples目录下有不同模型对应的 preprocess/train/evalute代码，可自行修改
+2：如下示例从examples中引入actuator方法，准备好对应的模型配置文件即可执行
+3：examples目录下的inference.py为训练好的模型推理代码
+```
 
 ### TF-IDF
 

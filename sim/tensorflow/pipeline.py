@@ -61,13 +61,5 @@ class TextPairPipeline(NormalPipeline):
 
         return {"v_loss": loss, "v_acc": accuracy}
 
-    def inference(self, query1: str, query2: str) -> Any:
-        """ 推断模块
-        :param query1: 文本1
-        :param query2: 文本2
-        :return:
-        """
-        pass
-
     def _save_model(self, *args, **kwargs) -> NoReturn:
         pass

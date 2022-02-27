@@ -31,10 +31,6 @@ class Pipeline(abc.ABC):
     def evaluate(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def inference(self, *args, **kwargs):
-        raise NotImplementedError
-
 
 class NormalPipeline(Pipeline):
     def __init__(self, model: list, batch_size: int):
@@ -113,14 +109,6 @@ class NormalPipeline(Pipeline):
 
         logger.info("Evaluate end")
         return history
-
-    def inference(self, query1: str, query2: str) -> Any:
-        """ 推断模块
-        :param query1: 文本1
-        :param query2: 文本2
-        :return:
-        """
-        pass
 
     def _valid(self,
                progress_bar: ProgressBar,
