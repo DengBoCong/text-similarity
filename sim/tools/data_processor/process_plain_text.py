@@ -62,7 +62,7 @@ def text_pair_to_token_id(file_path: str,
     if seg_model:
         segment = Segment(model=seg_model)
     with open(file_path, "r", encoding="utf-8") as raw_file, open(
-            save_path, "a", encoding="utf-8") as save_file:
+            save_path, "w", encoding="utf-8") as save_file:
         for line in raw_file:
             line = line.strip().strip("\n")
             if line == "":
@@ -139,7 +139,7 @@ def text_to_token_id_for_bert(file_path: str,
 
     batch_token_ids, batch_segment_ids, batch_labels, count = [], [], [], 0
     with open(file_path, "r", encoding="utf-8") as raw_file, open(
-            save_path, "a", encoding="utf-8") as save_file:
+            save_path, "w", encoding="utf-8") as save_file:
         for line in raw_file:
             line = line.strip().strip("\n")
             if line == "":
