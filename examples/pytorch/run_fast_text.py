@@ -1,5 +1,5 @@
 #! -*- coding: utf-8 -*-
-""" TensorFlow Run Fast Text
+""" Pytorch Run Fast Text
 """
 # Author: DengBoCong <bocongdeng@gmail.com>
 #
@@ -11,23 +11,24 @@ from __future__ import print_function
 
 import json
 import os
-import tensorflow as tf
-import tensorflow.keras as keras
+import torch
+import torch.nn as nn
 from datetime import datetime
-from sim.tensorflow import albert_variable_mapping
-from sim.tensorflow import bert_variable_mapping
-from sim.tensorflow.common import load_bert_weights_from_checkpoint
-from sim.tensorflow.common import load_checkpoint
-from sim.tensorflow.common import set_seed
-from sim.tensorflow.modeling_albert import albert
-from sim.tensorflow.modeling_bert import bert_model
-from sim.tensorflow.modeling_nezha import NEZHA
-from sim.tensorflow.modeling_fasttext import fast_text
-from sim.tensorflow.pipeline import TextPairPipeline
+from sim.pytorch import bert_variable_mapping
+from sim.pytorch.common import Checkpoint
+from sim.pytorch.common import load_bert_weights
+from sim.pytorch.common import set_seed
+from sim.pytorch.common import truncated_normal_
+from sim.pytorch.modeling_albert import ALBERT
+from sim.pytorch.modeling_bert import BertModel
+from sim.pytorch.modeling_fasttext import FastText
+from sim.pytorch.modeling_nezha import NEZHA
+from sim.pytorch.pipeline import TextPairPipeline
 from sim.tools import BertConfig
 from sim.tools.data_processor.data_format import NormalDataGenerator
 from sim.tools.data_processor.process_ngram import construct_ngram_dict
 from sim.tools.data_processor.process_plain_text import text_pair_to_token_id
+from sim.tools.data_processor.process_plain_text import text_to_token_id_for_bert
 from sim.tools.data_processor.process_plain_text import text_to_token_id_for_bert
 from sim.tools.settings import MODEL_CONFIG_FILE_PATH
 from sim.tools.settings import RUNTIME_LOG_FILE_PATH
@@ -37,20 +38,46 @@ from sim.tools.word2vec import train_word2vec_model
 from typing import NoReturn
 
 logger = get_logger(name="actuator", file_path=RUNTIME_LOG_FILE_PATH)
-tf.config.run_functions_eagerly(True)
+
+
+class Model(nn.Module):
+    """组合模型适配任务
+    """
+
+    def __init__(self, bert_config: BertConfig, batch_size: int, seq_len: int, model_type: str = "bert"):
+        super(Model, self).__init__()
+        if model_type == "bert":
+            self.bert_model = BertModel(config=bert_config, batch_size=batch_size)
+        elif model_type == "albert":
+            self.bert_model = ALBERT(config=bert_config, batch_size=batch_size)
+        elif model_type == "nezha":
+            self.bert_model = NEZHA(config=bert_config, batch_size=batch_size)
+        else:
+            raise ValueError("`model_type` must in bert/albert/nezha")
+
+        for params in self.bert_model.parameters():
+            params.requires_grad = False  # 固定权重
+
+        self.fast_text = FastText(embedding_size=bert_config.hidden_size, seq_len=seq_len,
+                                  hidden_size=bert_config.hidden_size)
+
+    def forward(self, input_ids, token_type_ids):
+        outputs = self.bert_model(input_ids, token_type_ids)
+        outputs = self.fast_text(outputs)
+
+        return outputs
 
 
 def actuator(execute_type: str, model_type: str, model_dir: str = None) -> NoReturn:
     """
-    :param execute_type: 执行类型，"bert", "albert", "nezha", "word2vec", "emb"
-    :param model_type: 模型类型
-    :param model_dir: 预训练模型目录，如果不用预训练模型不传
+    :param execute_type: 执行类型
+    :param model_type: 模型执行类型
+    :param model_dir: 预训练模型目录
     """
     pad_max_len = 40
     batch_size = 64
     seed = 1
     epochs = 5
-    embedding_size = 512
     raw_train_data_path = "./corpus/chinese/LCQMC/train.txt"
     raw_valid_data_path = "./corpus/chinese/LCQMC/test.txt"
     train_data_path = "./data/train1.txt"
@@ -61,7 +88,7 @@ def actuator(execute_type: str, model_type: str, model_dir: str = None) -> NoRet
 
     # 如果使用预训练模型，这里自行修改一下啦
     config_path = os.path.join(model_dir, "bert_config.json")
-    checkpoint_path = os.path.join(model_dir, "bert_model.ckpt")
+    model_file_path = os.path.join(model_dir, "pytorch_model.bin")
     dict_path = os.path.join(model_dir, "vocab.txt")
 
     # 如果用的话Word2Vec，这里就是模型保存路径
@@ -105,44 +132,36 @@ def actuator(execute_type: str, model_type: str, model_dir: str = None) -> NoRet
             text_pair_to_token_id(file_path=raw_valid_data_path,
                                   save_path=valid_data_path, pad_max_len=pad_max_len, tokenizer=tokenizer)
     else:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
         with open(train_data_path, "r", encoding="utf-8") as train_file, open(
                 valid_data_path, "r", encoding="utf-8") as valid_file:
             train_generator = NormalDataGenerator(train_file.readlines(), batch_size)
             valid_generator = NormalDataGenerator(valid_file.readlines(), batch_size, random=False)
 
-        # 这里使用bert作为Embedding
-        if model_type == "bert":
-            bert_config = BertConfig.from_json_file(json_file_path=config_path)
-            bert = bert_model(config=bert_config, batch_size=batch_size)
-            load_bert_weights_from_checkpoint(checkpoint_path, bert, bert_variable_mapping(bert_config.num_hidden_layers))
-        elif model_type == "albert":
-            bert_config = BertConfig.from_json_file(json_file_path=config_path)
-            bert = albert(config=bert_config, batch_size=batch_size)
-            load_bert_weights_from_checkpoint(checkpoint_path, bert, albert_variable_mapping())
-        elif model_type == "nezha":
-            bert_config = BertConfig.from_json_file(json_file_path=config_path)
-            bert = NEZHA(config=bert_config, batch_size=batch_size)
-            load_bert_weights_from_checkpoint(checkpoint_path, bert,
-                                              bert_variable_mapping(bert_config.num_hidden_layers))
-        else:
-            raise ValueError("`model_type` must in bert/albert/nezha")
-        bert.trainable = False
+        bert_config = BertConfig.from_json_file(json_file_path=config_path)
+        model = Model(bert_config=bert_config, batch_size=batch_size, seq_len=pad_max_len)
 
-        outputs = fast_text(bert_config.hidden_size, bert_config.hidden_size)(bert.output)
-        model = keras.Model(inputs=bert.inputs, outputs=outputs)
+        weight_dict = load_bert_weights(
+            model_file_path=model_file_path, model=model,
+            mapping=bert_variable_mapping(bert_config.num_hidden_layers, prefix_="bert_model.")
+        )
+        model.load_state_dict(state_dict=weight_dict)
 
-        checkpoint_manager = load_checkpoint(checkpoint_dir=checkpoint_dir, execute_type=execute_type,
-                                             checkpoint_save_size=checkpoint_save_size, model=model)
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model, device_ids=[0, 1, 2])
+            model.to(device)
 
-        pipeline = TextPairPipeline([model], batch_size)
+        pipeline = TextPairPipeline([model], batch_size, device, torch.IntTensor, torch.LongTensor)
         history = {"t_acc": [], "t_loss": [], "v_acc": [], "v_loss": []}
 
         if execute_type == "train":
             set_seed(manual_seed=seed)
-            optimizer = keras.optimizers.Adam(learning_rate=2e-5)
+            optimizer = torch.optim.Adam(params=model.parameters(), lr=2e-5)
+            checkpoint = Checkpoint(checkpoint_dir=checkpoint_dir, optimizer=optimizer, model=model)
 
             pipeline.train(train_generator, valid_generator, epochs, optimizer,
-                           checkpoint_manager, checkpoint_save_freq, history)
+                           checkpoint, checkpoint_save_freq, history)
         elif execute_type == "evaluate":
             pipeline.evaluate(valid_generator, history)
         else:
@@ -150,4 +169,4 @@ def actuator(execute_type: str, model_type: str, model_dir: str = None) -> NoRet
 
 
 if __name__ == '__main__':
-    actuator(execute_type="trian", model_type="bert", model_dir="./data/ch/bert/chinese_wwm_L-12_H-768_A-12")
+    actuator(model_dir="./data/ch/bert/chinese_wwm_pytorch", execute_type="train")

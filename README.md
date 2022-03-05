@@ -19,6 +19,7 @@
    + BM25
    + LSH
    + SIF/uSIF
+   + FastText
    + RNN Base
    + Bert Base
    + Albert
@@ -105,6 +106,18 @@ sif.fit(tokens_list=sentences, vector_list=vector)
 
 usif = uSIF(n_components=5, n=1, component_type="svd")
 usif.fit(tokens_list=sentences, vector_list=vector)
+```
+
+### FastText
++ [Bag of Tricks for Efficient Text Classification](https://arxiv.org/pdf/1607.01759.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_fast_text import actuator
+actuator(execute_type="train", model_type="bert", model_dir="./data/chinese_wwm_L-12_H-768_A-12")
+
+# Pytorch version
+from examples.pytorch.run_fast_text import actuator
+actuator(execute_type="train", model_type="bert", model_dir="./data/chinese_wwm_pytorch")
 ```
 
 ### RNN Base
