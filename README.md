@@ -21,6 +21,7 @@
    + SIF/uSIF
    + FastText
    + RNN Base
+   + CNN Base
    + Bert Base
    + Albert
    + NEZHA
@@ -131,6 +132,19 @@ actuator("./data/config/siamse_rnn.json", execute_type="train")
 # Pytorch version
 from examples.pytorch.run_siamese_rnn import actuator
 actuator("./data/config/siamse_rnn.json", execute_type="train")
+```
+
+### CNN Base
++ [Convolutional Neural Networks for Sentence Classification](https://arxiv.org/pdf/1408.5882.pdf)
++ [Character-Aware Neural Language Models](https://arxiv.org/pdf/1508.06615.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_cnn_base import actuator
+actuator(execute_type="train", model_type="bert", model_dir="./data/chinese_wwm_L-12_H-768_A-12")
+
+# Pytorch version
+from examples.pytorch.run_cnn_base import actuator
+actuator(execute_type="train", model_type="bert", model_dir="./data/chinese_wwm_pytorch")
 ```
 
 ### Bert Base
