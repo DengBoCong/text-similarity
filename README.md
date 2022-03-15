@@ -20,8 +20,8 @@
    + LSH
    + SIF/uSIF
    + FastText
-   + RNN Base
-   + CNN Base
+   + RNN Base (Siamese RNN, Stack RNN)
+   + CNN Base (Fast Text, Text CNN, Char CNN)
    + Bert Base
    + Albert
    + NEZHA
@@ -137,6 +137,7 @@ actuator("./data/config/siamse_rnn.json", execute_type="train")
 ### CNN Base
 + [Convolutional Neural Networks for Sentence Classification](https://arxiv.org/pdf/1408.5882.pdf)
 + [Character-Aware Neural Language Models](https://arxiv.org/pdf/1508.06615.pdf)
++ [Highway Networks](https://arxiv.org/pdf/1505.00387.pdf)
 ```python
 # TensorFlow version
 from examples.tensorflow.run_cnn_base import actuator
