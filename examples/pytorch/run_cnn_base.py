@@ -21,7 +21,7 @@ from sim.pytorch.common import set_seed
 from sim.pytorch.common import truncated_normal_
 from sim.pytorch.modeling_albert import ALBERT
 from sim.pytorch.modeling_bert import BertModel
-from sim.pytorch.modeling_cnn_base import TextCNN
+from sim.pytorch.modeling_text_cnn import TextCNN
 from sim.pytorch.modeling_nezha import NEZHA
 from sim.pytorch.pipeline import TextPairPipeline
 from sim.tools import BertConfig

@@ -21,7 +21,7 @@ from sim.tensorflow.common import load_checkpoint
 from sim.tensorflow.common import set_seed
 from sim.tensorflow.modeling_albert import albert
 from sim.tensorflow.modeling_bert import bert_model
-from sim.tensorflow.modeling_cnn_base import text_cnn
+from sim.tensorflow.modeling_text_cnn import text_cnn
 from sim.tensorflow.modeling_nezha import NEZHA
 from sim.tensorflow.pipeline import TextPairPipeline
 from sim.tools import BertConfig
