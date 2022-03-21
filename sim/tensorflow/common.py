@@ -193,6 +193,33 @@ def scaled_dot_product_attention(query: tf.Tensor,
     return context_layer, attention_weights
 
 
+def dot_product_attention(query: tf.Tensor,
+                          key: tf.Tensor,
+                          value: tf.Tensor,
+                          depth: int,
+                          dropout: float,
+                          mask: Any = None) -> tuple:
+    """通用点乘注意力计算
+    :param query: (..., seq_len_q, depth)
+    :param key: (..., seq_len_k, depth)
+    :param value: (..., seq_len_v, depth_v)
+    :param depth: 特征维度大小
+    :param dropout: 注意力dropout
+    :param mask: float, (..., seq_len_q, seq_len_k)
+    """
+    attention_scores = tf.matmul(a=query, b=key, transpose_b=True)
+    attention_scores = attention_scores / tf.math.sqrt(x=tf.cast(x=depth, dtype="float32"))
+
+    if mask is not None:
+        attention_scores += (mask * -1e9)
+
+    attention_weights = tf.nn.softmax(logits=attention_scores, axis=-1)
+    attention_weights = keras.layers.Dropout(rate=dropout)(attention_weights)
+    context_layer = tf.matmul(a=attention_weights, b=value)
+
+    return context_layer, attention_weights
+
+
 # 参考自 https://github.com/bojone/keras_recompute
 def recompute_grad(call):
     """重计算装饰器（用来装饰Keras层的call函数）

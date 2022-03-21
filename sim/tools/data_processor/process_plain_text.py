@@ -183,6 +183,82 @@ def text_to_token_id_for_bert(file_path: str,
         logger.info("Finish write in")
 
 
+def tetrad_text_to_token_id_for_bert(file_path: str,
+                                     save_path: str,
+                                     split: str = "\t",
+                                     pad_max_len: int = None,
+                                     tokenizer: BertTokenizer = None,
+                                     token_dict: str = None,
+                                     padding: str = 'post',
+                                     truncating: str = 'post',
+                                     value: int = 0,
+                                     print_count: int = 1000) -> NoReturn:
+    """用于bert将Text转换为token id, 四个文本一组
+    :param file_path: 未处理的文本数据路径，文本格式: <text1><split><text2><split><text3><split><text4><split><label>
+    :param save_path: 保存处理后的数据路径
+    :param split: text pair的分隔符
+    :param pad_max_len: padding size
+    :param tokenizer: 分词器
+    :param token_dict: 映射字典或其文件路径
+    :param padding: 填充类型，pre在前，post在后
+    :param truncating: 截断类型，pre在前，post在后
+    :param value: 填充值类型，float或者是string
+    :param print_count: 处理print_count数量数据打印日志
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError("Raw text file not found")
+
+    if not tokenizer:
+        tokenizer = CustomBertTokenizer(token_dict=token_dict, do_lower_case=True)
+
+    batch_token_ids_a, batch_token_ids_b, batch_labels, count = [], [], [], 0
+    batch_segment_ids_a, batch_segment_ids_b = [], []
+    with open(file_path, "r", encoding="utf-8") as raw_file, open(save_path, "w", encoding="utf-8") as save_file:
+        for line in raw_file:
+            line = line.strip().strip("\n")
+            if line == "":
+                continue
+
+            pair = line.split(split)
+
+            a_token_ids, a_segment_ids = tokenizer.encode(first_text=pair[0], max_len=pad_max_len)
+            batch_token_ids_a.append(a_token_ids)
+            batch_segment_ids_a.append(a_segment_ids)
+            b_token_ids, b_segment_ids = tokenizer.encode(first_text=pair[1], max_len=pad_max_len)
+            batch_token_ids_b.append(b_token_ids)
+            batch_segment_ids_b.append(b_segment_ids)
+            batch_labels.append(pair[2] if len(pair) == 3 else 0)
+
+            count += 1
+            if count % print_count == 0:
+                print("\r{} text-pairs processed".format(count), end="", flush=True)
+
+        logger.info("{} text-pairs processed".format(count))
+
+        batch_token_ids_a = pad_sequences(sequences=batch_token_ids_a, max_len=pad_max_len,
+                                          padding=padding, truncating=truncating, value=value)
+        batch_token_ids_b = pad_sequences(sequences=batch_token_ids_b, max_len=pad_max_len,
+                                          padding=padding, truncating=truncating, value=value)
+        batch_segment_ids_a = pad_sequences(sequences=batch_segment_ids_a, max_len=pad_max_len,
+                                            padding=padding, truncating=truncating, value=value)
+        batch_segment_ids_b = pad_sequences(sequences=batch_segment_ids_b, max_len=pad_max_len,
+                                            padding=padding, truncating=truncating, value=value)
+
+        logger.info("Begin write in")
+        for index, (token_ids_a, segment_ids_a, token_ids_b, segment_ids_b, labels) in enumerate(
+                zip(batch_token_ids_a, batch_segment_ids_a, batch_token_ids_b, batch_segment_ids_b, batch_labels)
+        ):
+            save_file.write("{}{}{}{}{}{}{}{}{}\n".format(
+                " ".join(map(str, token_ids_a)), split, " ".join(map(str, segment_ids_a)), split,
+                " ".join(map(str, token_ids_b)), split, " ".join(map(str, segment_ids_b)), split, labels
+            ))
+
+            if index % print_count == 0:
+                print("\r{} text-pairs processed".format(index), end="", flush=True)
+
+        logger.info("Finish write in")
+
+
 def convert_sample_to_json(file_path: str,
                            save_path: str,
                            header: str = None,
