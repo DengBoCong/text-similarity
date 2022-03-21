@@ -39,7 +39,6 @@ def poly_encoder(context_bert_model: Any,
     """
     context_input_ids = keras.Input(shape=(None,))
     context_token_type_ids = keras.Input(shape=(None,))
-    context_input_mask = tf.cast(x=tf.math.equal(context_input_ids, 0), dtype=tf.float32)[:, tf.newaxis, :]
     context_embedding = context_bert_model([context_input_ids, context_token_type_ids])
 
     candidate_input_ids = keras.Input(shape=(None,))
@@ -50,10 +49,10 @@ def poly_encoder(context_bert_model: Any,
         context_poly_code_ids = keras.backend.arange(start=1, stop=poly_m + 1)
         context_poly_code_ids = tf.expand_dims(input=context_poly_code_ids, axis=0)
         context_poly_code_ids = tf.repeat(input=context_poly_code_ids, repeats=batch_size, axis=0)
-        context_poly_codes = keras.layers.Embedding(input_dim=poly_m + 1, output_dim=embeddings_size)(
-            context_poly_code_ids)
-        context_vec, _ = dot_product_attention(query=context_poly_codes, key=context_embedding, value=context_embedding,
-                                               depth=embeddings_size, dropout=dropout, mask=context_input_mask)
+        context_poly_codes = keras.layers.Embedding(input_dim=poly_m + 1,
+                                                    output_dim=embeddings_size)(context_poly_code_ids)
+        context_vec, _ = dot_product_attention(query=context_poly_codes, key=context_embedding,
+                                               value=context_embedding, depth=embeddings_size, dropout=dropout)
     elif poly_type == "first":
         context_vec = context_embedding[:, :poly_m]
     elif poly_type == "last":
@@ -64,18 +63,18 @@ def poly_encoder(context_bert_model: Any,
     if candi_agg_type == "cls":
         candidate_vec = candidate_embedding[:, 0]
     elif candi_agg_type == "avg":
-        candidate_vec = tf.reduce_mean(input_tensor=candidate_embedding, axis=-1)
+        candidate_vec = tf.reduce_mean(input_tensor=candidate_embedding, axis=1)
     else:
         raise ValueError("`candi_agg_type` must in [cls, avg]")
 
     final_vec, _ = dot_product_attention(query=candidate_vec, key=context_vec, value=context_vec,
                                          depth=embeddings_size, dropout=dropout)
 
-    outputs = tf.reduce_mean(input_tensor=final_vec * candidate_vec, axis=-1)
+    outputs = tf.reduce_mean(input_tensor=final_vec * candidate_vec, axis=1)
 
     if has_labels:
         # 这里做二分类
-        outputs = keras.layers.Dropout(rate=0.1)(outputs)
+        outputs = keras.layers.Dropout(rate=dropout)(outputs)
         outputs = keras.layers.Dense(
             units=2, activation="softmax",
             kernel_initializer=keras.initializers.TruncatedNormal(stddev=initializer_range)

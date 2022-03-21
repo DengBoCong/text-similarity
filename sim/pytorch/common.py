@@ -265,6 +265,33 @@ def scaled_dot_product_attention(query: Any,
     return context_layer, attention_weights
 
 
+def dot_product_attention(query: Any,
+                          key: Any,
+                          value: Any,
+                          depth: int,
+                          dropout: float,
+                          mask: Any = None) -> tuple:
+    """通用点乘注意力计算
+    :param query: (..., seq_len_q, depth)
+    :param key: (..., seq_len_k, depth)
+    :param value: (..., seq_len_v, depth_v)
+    :param depth: 分头之后维度大小
+    :param dropout: 注意力dropout
+    :param mask: float, (..., seq_len_q, seq_len_k)
+    """
+    attention_scores = torch.matmul(input=query, other=key.permute(0, 2, 1))
+    attention_scores = attention_scores / torch.sqrt(input=torch.tensor(data=depth))
+
+    if mask is not None:
+        attention_scores += (mask * -1e9)
+
+    attention_weights = torch.softmax(input=attention_scores, dim=-1)
+    attention_weights = nn.Dropout(p=dropout)(attention_weights)
+    context_layer = torch.matmul(input=attention_weights, other=value)
+
+    return context_layer, attention_weights
+
+
 def swish(x):
     return x * torch.sigmoid(x)
 

@@ -27,6 +27,7 @@
    + NEZHA
    + RoBERTa
    + SimCSE
+   + Poly-Encoder
 
 # Usages
 ```
@@ -206,6 +207,18 @@ actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", m
 
 # Pytorch version
 from examples.pytorch.run_simcse import actuator
+actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
+```
+
+### Poly-Encoder
++ [Poly-encoders: Transformer Architectures and Pre-training Strategies for Fast and Accurate Multi-sentence Scoring](https://arxiv.org/pdf/1905.01969v2.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_poly_encoder import actuator
+actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", model_type="bert")
+
+# Pytorch version
+from examples.pytorch.run_poly_encoder import actuator
 actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
 ```
 
