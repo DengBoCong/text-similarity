@@ -28,6 +28,7 @@
    + RoBERTa
    + SimCSE
    + Poly-Encoder
+   + ColBERT
 
 # Usages
 ```
@@ -219,6 +220,18 @@ actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", m
 
 # Pytorch version
 from examples.pytorch.run_poly_encoder import actuator
+actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
+```
+
+### ColBERT
++ [ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT](https://arxiv.org/pdf/2004.12832.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_colbert import actuator
+actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", model_type="bert")
+
+# Pytorch version
+from examples.pytorch.run_colbert import actuator
 actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
 ```
 
