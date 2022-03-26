@@ -51,6 +51,7 @@ class CustomPipeline(TextPairPipeline):
         :param y_pred: 预测值
         """
         loss = nn.BCELoss()(nn.Sigmoid()(y_pred), y_true.float())
+        loss = loss / self.batch_size
 
         return loss
 
