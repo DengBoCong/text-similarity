@@ -29,6 +29,7 @@
    + SimCSE
    + Poly-Encoder
    + ColBERT
+   + RE2（Simple-Effective-Text-Matching）
 
 # Usages
 ```
@@ -233,6 +234,18 @@ actuator(model_dir="./data/chinese_wwm_L-12_H-768_A-12", execute_type="train", m
 # Pytorch version
 from examples.pytorch.run_colbert import actuator
 actuator(model_dir="./data/chinese_wwm_pytorch", execute_type="train", model_type="bert")
+```
+
+### RE2
++ [Simple and Effective Text Matching with Richer Alignment Features](https://arxiv.org/pdf/1908.00300.pdf)
+```python
+# TensorFlow version
+from examples.tensorflow.run_re2 import actuator
+actuator("./data/config/re2.json", execute_type="train")
+
+# Pytorch version
+from examples.pytorch.run_re2 import actuator
+actuator("./data/config/re2.json", execute_type="train")
 ```
 
 
