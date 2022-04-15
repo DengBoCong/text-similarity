@@ -306,3 +306,15 @@ class Sinusoidal(keras.initializers.Initializer):
         angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
         angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
         return angle_rads
+
+
+def sparse_dropout(x: Any, rate: float, noise_shape: Any) -> Any:
+    """Sparse Dropout
+    :param x: 输入
+    :param rate: 采样率
+    :param noise_shape: 引入noise shape
+    """
+    random_tensor = tf.random.uniform(shape=noise_shape) + rate
+    dropout_mask = tf.cast(x=tf.floor(x=random_tensor), dtype=tf.bool)
+    pre_out = tf.sparse.retain(sp_input=x, to_retain=dropout_mask)
+    return pre_out * (1. / rate)

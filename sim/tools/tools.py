@@ -266,3 +266,20 @@ def clean_str(string):
     string = re.sub(r"\?", " \? ", string)
     string = re.sub(r"\s{2,}", " ", string)
     return string.strip().lower()
+
+
+def load_stopwords(stop_words_file_path_list: list) -> set:
+    """加载stop words
+    :param stop_words_file_path_list: 停用词文件列表
+    """
+    stop_words_set = set()
+    for stop_words_file_path in stop_words_file_path_list:
+        if not os.path.exists(stop_words_file_path):
+            raise FileNotFoundError(f"`{stop_words_file_path}` not found")
+        with open(stop_words_file_path, "r", encoding="utf-8") as file:
+            for line in file:
+                line = line.strip().strip("\n")
+                if line:
+                    stop_words_set.add(line)
+
+    return stop_words_set
