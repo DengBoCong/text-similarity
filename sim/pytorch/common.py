@@ -78,6 +78,34 @@ def load_bert_weights(model_file_path: str,
     return model_state_dict
 
 
+def load_weights(model_file_path: str,
+                 model: nn.Module,
+                 mapping: dict = None) -> OrderedDict:
+    """根据mapping从权重文件中加载模型权重
+    :param model_file_path: 权重文件路径
+    :param model: 模型
+    :param mapping: 权重映射表
+    """
+    success_load_count = 0
+    model_state_dict, pretrain_state_dict = model.state_dict(), torch.load(model_file_path)
+    for k, v in model_state_dict.items():
+        if mapping and k in mapping and mapping[k] in pretrain_state_dict:
+            assert model_state_dict[k].shape == pretrain_state_dict[mapping[k]].shape
+            model_state_dict[k] = pretrain_state_dict[mapping[k]]
+            success_load_count += 1
+        elif k in pretrain_state_dict:
+            assert model_state_dict[k].shape == pretrain_state_dict[k].shape
+            model_state_dict[k] = pretrain_state_dict[k]
+            success_load_count += 1
+        else:
+            print(f"`{k}` not in weights mapping, and ignore")
+
+    # 这里做一个权重成功加载的数量提示
+    print(f"success load weights count: {success_load_count}")
+
+    return model_state_dict
+
+
 class Checkpoint(object):
     def __init__(self, checkpoint_dir: str, optimizer: torch.optim.Optimizer = None, model: torch.nn.Module = None):
         """
