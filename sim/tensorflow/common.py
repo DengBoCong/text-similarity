@@ -133,6 +133,42 @@ def load_bert_weights_from_checkpoint(checkpoint: Any, model: keras.Model, mappi
     keras.backend.batch_set_value(weight_value_pairs)
 
 
+def load_weights_from_checkpoint(checkpoint: Any, model: keras.Model, mapping: dict = None) -> NoReturn:
+    """通用模型权重加载
+    :param checkpoint: 检查点，str/dict
+    :param model: 模型
+    :param mapping: 权重映射表，为空的话就按照模型本身结构名加载权重
+    """
+    weight_value_pairs, weights, values = [], [], []
+    for trainable_weight in model.trainable_weights:
+        try:
+            weight_name = trainable_weight.name.split(":")[0]
+
+            if mapping and weight_name not in mapping:
+                print(f"`{weight_name}` not in weights mapping, and ignore")
+                continue
+
+            if isinstance(checkpoint, dict):
+                variable = checkpoint[mapping[weight_name] if mapping else weight_name]
+            else:
+                variable = tf.train.load_variable(checkpoint, mapping[weight_name] if mapping else weight_name)
+
+            values.append(variable)
+            weights.append(trainable_weight)
+        except Exception as e:
+            print(f"{str(e)}, but ignored")
+
+    for weight, value in zip(weights, values):
+        if value is not None:
+            weight_shape, value_shape = weight.shape, value.shape
+            if weight_shape != value_shape:
+                raise ValueError(f"shape {weight_shape} and shape {value_shape} are incompatible")
+
+            weight_value_pairs.append((weight, value))
+
+    keras.backend.batch_set_value(weight_value_pairs)
+
+
 # 定义相关的损失函数
 def contrastive_loss(ew: Any, label: Any, m: float):
     """

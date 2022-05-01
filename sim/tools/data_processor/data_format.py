@@ -48,6 +48,23 @@ class BertInputSample(object):
         self.label = label
 
 
+class InferSample(object):
+    """inference使用的输入"""
+
+    def __init__(self, guid: Any, samples: tuple, prefix: str = "input"):
+        """构建InferSample
+        :param guid: 样本唯一ID
+        :param samples: samples
+        """
+        self.guid = guid
+        self.prefix = prefix
+        for index, sample in enumerate(samples):
+            setattr(self, f"{prefix}{index}", sample)
+
+    def get(self, index: int):
+        return getattr(self, f"{self.prefix}{index}")
+
+
 class DataGenerator(object):
     """数据生成器基类
     """
