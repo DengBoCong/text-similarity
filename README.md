@@ -32,10 +32,17 @@
    + RE2（Simple-Effective-Text-Matching）
 
 # Usages
+可以选择通过pip进行安装并使用（如下），或者直接下载源码到本地，集成到项目中：
+```
+pip3 install text-sim
+```
+
 ```
 1：examples目录下有不同模型对应的 preprocess/train/evalute代码，可自行修改
 2：如下示例从examples中引入actuator方法，准备好对应的模型配置文件即可执行
 3：examples目录下的inference.py为训练好的模型推理代码
+4：主体代码放在sim下，TensorFlow和Pytorch两个版本分开存放，引用方式基本保持一致
+5：相关工具包括word2vec、tokenizer、data_format统一放在sim的tools下
 ```
 
 ### TF-IDF
